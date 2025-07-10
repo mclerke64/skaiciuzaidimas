@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Numbers Game - Result</title>
+    <style>
+        body {
+            background: black;
+            color: white;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        .background-numbers {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.1;
+            font-size: 6vw;
+            color: yellow;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .background-numbers span {
+            white-space: pre-wrap;
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            margin-top: 10vh;
+        }
+        h2 {
+            margin-top: 30px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            margin: 5px 0;
+        }
+        .winner-text {
+            font-size: 2.5em;
+            color: purple;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .next-game-button {
+            padding: 12px 24px;
+            font-size: 1.2em;
+            background-color: #ff4500;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        .next-game-button:hover {
+            background-color: #e03e00;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-numbers">
+        <span>
+            1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+            21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40
+            41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+            61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80
+            81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100
+        </span>
+    </div>
+    <div class="content">
+        <h1>Numbers Game - Result</h1>
+        {% if winners and winners|length > 0 %}
+            {% if winners|length == 1 %}
+                <div class="winner-text">Winner is {{ winners[0].name }}!</div>
+                <p>Winning guess: {{ winners[0].guess }}</p>
+            {% else %}
+                <div class="winner-text">It's a Draw! Winners: {{ winners|map(attribute='name')|join(', ') }}</div>
+                <p>Winning guess: {{ winners[0].guess }}</p>
+            {% endif %}
+        {% else %}
+            <div class="winner-text">It's a Draw! No middle number.</div>
+        {% endif %}
+
+        {% if players %}
+            <h2>Joined Players</h2>
+            <ul>
+                {% for player in players %}
+                    <li>{{ player.name }} guessed {{ player.guess }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <form method="POST" action="/reset">
+            <button class="next-game-button" type="submit">Next Game</button>
+        </form>
+    </div>
+</body>
+</html>

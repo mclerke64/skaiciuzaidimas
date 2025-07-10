@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Numbers Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.min.js"></script>
+    <style>
+        body {
+            background: black;
+            color: white;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        .background-numbers {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.1;
+            font-size: 6vw;
+            color: yellow;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .background-numbers span {
+            white-space: pre-wrap;
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            margin-top: 10vh;
+        }
+        form {
+            margin-top: 20px;
+            display: inline-block;
+            background: #222;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        input[type="text"],
+        input[type="number"] {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 4px;
+            border: none;
+            font-size: 1em;
+        }
+        button {
+            padding: 8px 16px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        h2 {
+            margin-top: 30px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            margin: 5px 0;
+        }
+        .status {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #00ff00;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        #countdown {
+            margin-top: 20px;
+            font-size: 1.5em;
+            color: #ff0;
+        }
+        #winner {
+            margin-top: 20px;
+        }
+        .winner-text {
+            font-size: 2.5em;
+            color: purple;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .next-game-button {
+            padding: 12px 24px;
+            font-size: 1.2em;
+            background-color: #ff4500;
+            margin-top: 15px;
+        }
+        .next-game-button:hover {
+            background-color: #e03e00;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-numbers">
+        <span>
+            1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+            21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40
+            41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+            61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80
+            81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100
+        </span>
+    </div>
+    <div class="content">
+        <h1>Welcome to the Numbers Game!</h1>
+        <p>
+            Nice to see you at the numbers game!<br>
+            Enter your name and try to guess the number in the middle (not the lowest and not the highest).<br>
+            Numbers are from 1 to 100.<br>
+            The game will start when we have at least 3 players.<br>
+            +10 extra seconds if more players want to join.
+        </p>
+
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <div id="countdown" style="display: none;">Time remaining: <span id="timer">0</span> seconds</div>
+
+        {% if not game_started %}
+            <form method="POST" action="/">
+                <input type="text" name="name" placeholder="Your name" required>
+                <input type="number" name="guess" placeholder="Your guess" min="1" max="100" required>
+                <br>
+                <button type="submit">Join Game</button>
+            </form>
+        {% else %}
+            <div class="status">The game has started!</div>
+        {% endif %}
+
+        {% if players %}
+            <h2>Joined Players</h2>
+            <ul id="player-list">
+                {% for player in players %}
+                    <li>
+                        {{ player.name }}
+                        {% if game_started %}
+                            guessed {{ player.guess }}
+                        {% else %}
+                            (guess hidden)
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <div id="winner" style="display: none;"></div>
+    </div>
+
+    <script>
+        const socket = io.connect();
+
+        socket.on('connect', function() {
+            console.log('Connected to WebSocket');
+        });
+
+        socket.on('update_countdown', function(data) {
+            console.log('Countdown update:', data);
+            const countdownDiv = document.getElementById('countdown');
+            const timerSpan = document.getElementById('timer');
+            if (data.countdown_active && data.remaining_time > 0) {
+                countdownDiv.style.display = 'block';
+                timerSpan.textContent = data.remaining_time.toFixed(1);
+            } else {
+                countdownDiv.style.display = 'none';
+            }
+        });
+
+        socket.on('update_game_state', function(data) {
+            console.log('Game state update:', data);
+            const playerList = document.getElementById('player-list');
+            const winnerDiv = document.getElementById('winner');
+            const form = document.querySelector('form');
+            const statusDiv = document.querySelector('.status');
+
+            // Update player list
+            if (data.players) {
+                playerList.innerHTML = '';
+                data.players.forEach(player => {
+                    const li = document.createElement('li');
+                    li.textContent = player.name + (data.game_started ? ` guessed ${player.guess}` : ' (guess hidden)');
+                    playerList.appendChild(li);
+                });
+            }
+
+            // Update game status
+            if (data.game_started) {
+                statusDiv.style.display = 'block';
+                statusDiv.textContent = 'The game has started!';
+                if (form) form.style.display = 'none';
+            } else {
+                statusDiv.style.display = 'none';
+                if (form) form.style.display = 'inline-block';
+            }
+
+            // Update winner
+            if (data.winners && data.winners.length > 0) {
+                winnerDiv.style.display = 'block';
+                if (data.winners.length === 1) {
+                    winnerDiv.innerHTML = `<div class="winner-text">Winner is ${data.winners[0].name}!</div><p>Winning guess: ${data.winners[0].guess}</p>`;
+                } else {
+                    const names = data.winners.map(w => w.name).join(', ');
+                    const guess = data.winners[0].guess;
+                    winnerDiv.innerHTML = `<div class="winner-text">It's a Draw! Winners: ${names}</div><p>Winning guess: ${guess}</p>`;
+                }
+                winnerDiv.innerHTML += '<form method="POST" action="/reset"><button class="next-game-button" type="submit">Next Game</button></form>';
+            } else if (data.game_started && data.players.length >= 3) {
+                winnerDiv.style.display = 'block';
+                winnerDiv.innerHTML = `<div class="winner-text">It's a Draw! No middle number.</div>`;
+                winnerDiv.innerHTML += '<form method="POST" action="/reset"><button class="next-game-button" type="submit">Next Game</button></form>';
+            } else {
+                winnerDiv.style.display = 'none';
+            }
+        });
+
+        socket.on('redirect_to_result', function() {
+            console.log('Received redirect_to_result event');
+            window.location.href = '/result';
+        });
+
+        socket.on('redirect_to_index', function() {
+            console.log('Received redirect_to_index event');
+            window.location.href = '/';
+        });
+    </script>
+</body>
+</html>
