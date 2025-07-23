@@ -19,6 +19,7 @@ countdown_start_time = None
 countdown_duration = 10
 countdown_active = False
 game_id = str(uuid.uuid4())
+last_activity_time = time.time()
 
 def get_middle_players(players):
     print(f"Calculating middle players for: {players}")
@@ -37,6 +38,8 @@ def get_middle_players(players):
     return result
 
 def broadcast_game_state():
+    global last_activity_time
+    last_activity_time = time.time()
     print(f"Broadcasting game state: players={len(players)}, game_started={game_started}, winners={winners}")
     socketio.emit('update_game_state', {
         'players': players,
@@ -46,14 +49,10 @@ def broadcast_game_state():
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    global players, game_started, winners, countdown_start_time, countdown_active, game_id
+    global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
     if 'game_id' not in session or session['game_id'] != game_id:
         session['game_id'] = game_id
         session['submitted'] = False
-    if session.get('submitted', False) and request.method == 'POST':
-        return render_template('index.html', players=players, game_started=game_started,
-                              winners=winners, countdown_active=countdown_active,
-                              error="You have already submitted a guess for this game!")
     if request.method == 'POST' and not game_started:
         name = request.form.get('name')
         guess = request.form.get('guess')
@@ -111,7 +110,7 @@ def handle_connect():
 
 @app.route('/reset', methods=['POST'])
 def reset():
-    global players, game_started, winners, countdown_start_time, countdown_active, game_id
+    global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
     print('Resetting game')
     players = []
     game_started = False
@@ -122,11 +121,13 @@ def reset():
     session.clear()
     session['game_id'] = game_id
     session['submitted'] = False
+    last_activity_time = time.time()
+    socketio.emit('game_reset', {}, namespace='/')  # Notify all clients to clear sessions
     broadcast_game_state()  # Sync state with all clients
     return redirect(url_for('index'))
 
 def countdown():
-    global countdown_active, game_started, winners, countdown_start_time
+    global countdown_active, game_started, winners, countdown_start_time, last_activity_time
     while countdown_active and countdown_start_time is not None:
         elapsed_time = time.time() - countdown_start_time
         remaining_time = max(0, countdown_duration - elapsed_time)
@@ -140,8 +141,32 @@ def countdown():
             winners = get_middle_players(players)
             broadcast_game_state()  # Update winners to all clients
             socketio.emit('redirect_to_result', {}, namespace='/')
+            socketio.start_background_task(auto_reset)  # Start auto-reset check
             break
         socketio.sleep(0.1)
+
+def auto_reset():
+    global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
+    while True:
+        inactive_time = time.time() - last_activity_time
+        if not countdown_active and not game_started and len(players) < 3 and inactive_time >= 10:
+            print('Auto-resetting due to inactivity')
+            players = []
+            game_started = False
+            winners = []
+            countdown_start_time = None
+            countdown_active = False
+            game_id = str(uuid.uuid4())
+            socketio.emit('game_reset', {}, namespace='/')
+            broadcast_game_state()
+            break
+        socketio.sleep(1)
+
+@socketio.on('game_reset')
+def handle_game_reset():
+    session.clear()
+    session['game_id'] = request.sid  # Unique per client
+    session['submitted'] = False
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
