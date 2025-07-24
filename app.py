@@ -27,14 +27,16 @@ def get_middle_players(players):
         return []
     unique_guesses = sorted(set(p['guess'] for p in players))
     print(f"Unique guesses: {unique_guesses}")
-    if len(unique_guesses) < 3:
+    if len(unique_guesses) < 3:  # Not enough unique guesses for a middle
         return []
-    if len(unique_guesses) % 2 == 0:
+    if len(unique_guesses) % 2 == 0:  # Even number of unique guesses, consider a draw
         return []
-    middle_guess = unique_guesses[len(unique_guesses) // 2]
+    middle_index = len(unique_guesses) // 2
+    middle_guess = unique_guesses[middle_index]
     print(f"Middle guess: {middle_guess}")
     result = [p for p in players if p['guess'] == middle_guess]
-    print(f"Winners: {result}")
+    if len(result) > 1:  # Multiple winners with the same middle guess
+        return []  # Treat as a draw
     return result
 
 def broadcast_game_state():
