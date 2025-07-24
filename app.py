@@ -25,19 +25,25 @@ def get_middle_players(players):
     print(f"Calculating middle players for: {players}")
     if len(players) < 3:
         return []
-    unique_guesses = sorted(set(p['guess'] for p in players))
-    print(f"Unique guesses: {unique_guesses}")
-    if len(unique_guesses) < 3:  # Not enough unique guesses for a middle
+    # Count occurrences of each guess
+    guess_counts = {}
+    for p in players:
+        guess_counts[p['guess']] = guess_counts.get(p['guess'], 0) + 1
+    unique_guesses = sorted(guess_counts.keys())
+    print(f"Unique guesses with counts: {guess_counts}")
+    if len(unique_guesses) < 3:
         return []
-    if len(unique_guesses) % 2 == 0:  # Even number of unique guesses, consider a draw
-        return []
+    if len(unique_guesses) % 2 == 0:
+        return []  # Draw for even number of unique guesses
     middle_index = len(unique_guesses) // 2
     middle_guess = unique_guesses[middle_index]
     print(f"Middle guess: {middle_guess}")
-    result = [p for p in players if p['guess'] == middle_guess]
-    if len(result) > 1:  # Multiple winners with the same middle guess
-        return []  # Treat as a draw
-    return result
+    # Check if only one player guessed the middle number
+    if guess_counts[middle_guess] == 1:
+        for p in players:
+            if p['guess'] == middle_guess:
+                return [p]  # Return the single winner
+    return []  # Draw if multiple players guessed the middle or other conditions fail
 
 def broadcast_game_state():
     global last_activity_time
