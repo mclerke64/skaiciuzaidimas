@@ -80,14 +80,12 @@
     </div>
     <div class="content">
         <h1>Numbers Game - Result</h1>
-        {% if winners and winners|length > 0 %}
-            {% if winners|length == 1 %}
-                <div class="winner-text">Winner is {{ winners[0].name }}!</div>
-                <p>Winning guess: {{ winners[0].guess }}</p>
-            {% else %}
-                <div class="winner-text">It's a Draw! Winners: {{ winners|map(attribute='name')|join(', ') }}</div>
-                <p>Winning guess: {{ winners[0].guess }}</p>
-            {% endif %}
+        {% if winners and winners|length == 1 %}
+            <div class="winner-text">Winner is {{ winners[0]['name'] }}!</div>
+            <p>Winning guess: {{ winners[0]['guess'] }}</p>
+        {% elif winners and winners|length > 1 %}
+            <div class="winner-text">It's a Draw! Winners: {{ winners|map(attribute='name')|join(', ') }}</div>
+            <p>Winning guess: {{ winners[0]['guess'] }}</p>
         {% else %}
             <div class="winner-text">It's a Draw! No middle number.</div>
         {% endif %}
@@ -96,7 +94,7 @@
             <h2>Joined Players</h2>
             <ul>
                 {% for player in players %}
-                    <li>{{ player.name }} guessed {{ player.guess }}</li>
+                    <li>{{ player['name'] }} guessed {{ player['guess'] }}</li>
                 {% endfor %}
             </ul>
         {% endif %}
