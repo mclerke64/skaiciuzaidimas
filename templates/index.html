@@ -3,21 +3,68 @@
 <head>
     <title>Numbers Game</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: black; color: white; }
+        body {
+            background: black;
+            color: white;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        .background-numbers {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.1;
+            font-size: 6vw;
+            color: yellow;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .background-numbers span {
+            white-space: pre-wrap;
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            margin-top: 10vh;
+        }
         .timer { font-size: 1.5em; color: yellow; margin: 10px; }
         .players { margin-top: 20px; }
         .error { color: red; }
+        input[type="text"], input[type="number"] {
+            margin: 5px;
+            padding: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #ff4500;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #e03e00; }
     </style>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         const socket = io();
         socket.on('update_game_state', (data) => {
-            document.getElementById('players').innerHTML = data.players.map(p => `${p.name} (guess ${p.guess})`).join('<br>');
+            const playersDiv = document.getElementById('players');
+            playersDiv.innerHTML = data.players.map(p => `${p.name} (guess ${p.guess})`).join('<br>');
         });
         socket.on('update_countdown', (data) => {
             const timer = document.getElementById('timer');
             if (data.countdown_active && data.remaining_time > 0) {
-                timer.textContent = `Time left: ${Math.ceil(data.remaining_time)}s`;
+                timer.textContent = `Waiting for more players: ${Math.ceil(data.remaining_time)}s`;
                 timer.style.display = 'block';
             } else {
                 timer.style.display = 'none';
@@ -27,26 +74,36 @@
     </script>
 </head>
 <body>
-    <h1>Welcome to the Numbers Game!</h1>
-    <p>Nice to see you at the numbers game!</p>
-    <p>Enter your name and try to guess the number in the middle (not the lowest and not the highest).</p>
-    <p>Numbers are from 1 to 100.</p>
-    <p>The game will start when we have at least 3 players.</p>
-    <p>+10 extra seconds if more players want to join.</p>
-    <div id="timer" class="timer" style="display: none;"></div>
-    <form method="POST" action="/">
-        <input type="text" name="name" placeholder="Your name" required><br>
-        <input type="number" name="guess" placeholder="Your guess" min="1" max="100" required><br>
-        <button type="submit">Join Game</button>
-    </form>
-    {% if error %}
-        <p class="error">{{ error }}</p>
-    {% endif %}
-    <div class="players" id="players">
-        {% for player in players %}
-            {{ player.name }} (guess {{ player.guess if game_started else 'hidden' }})
-            <br>
-        {% endfor %}
+    <div class="background-numbers">
+        <span>
+            1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+            21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40
+            41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+            61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80
+            81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100
+        </span>
+    </div>
+    <div class="content">
+        <h1>Welcome to the Numbers Game!</h1>
+        <p>Nice to see you at the numbers game!</p>
+        <p>Enter your name and try to guess the number in the middle (not the lowest and not the highest).</p>
+        <p>Numbers are from 1 to 100.</p>
+        <p>The game will start when we have at least 3 players.</p>
+        <p>+10 extra seconds if more players want to join.</p>
+        <div id="timer" class="timer" style="display: none;"></div>
+        <form method="POST" action="/">
+            <input type="text" name="name" placeholder="Your name" required><br>
+            <input type="number" name="guess" placeholder="Your guess" min="1" max="100" required><br>
+            <button type="submit">Join Game</button>
+        </form>
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+        <div class="players" id="players">
+            {% for player in players %}
+                {{ player.name }} (guess hidden)<br>
+            {% endfor %}
+        </div>
     </div>
 </body>
 </html>
