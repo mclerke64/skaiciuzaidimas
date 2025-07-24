@@ -25,7 +25,6 @@ def get_middle_players(players):
     print(f"Calculating middle players for: {players}")
     if len(players) < 3:
         return []
-    # Count occurrences of each guess
     guess_counts = {}
     for p in players:
         guess_counts[p['guess']] = guess_counts.get(p['guess'], 0) + 1
@@ -34,23 +33,22 @@ def get_middle_players(players):
     if len(unique_guesses) < 3:
         return []
     if len(unique_guesses) % 2 == 0:
-        return []  # Draw for even number of unique guesses
+        return []
     middle_index = len(unique_guesses) // 2
     middle_guess = unique_guesses[middle_index]
     print(f"Middle guess: {middle_guess}")
-    # Check if only one player guessed the middle number
     if guess_counts[middle_guess] == 1:
         for p in players:
             if p['guess'] == middle_guess:
-                return [p]  # Return the single winner
-    return []  # Draw if multiple players guessed the middle or other conditions fail
+                return [p]
+    return []
 
 def broadcast_game_state():
     global last_activity_time
     last_activity_time = time.time()
     print(f"Broadcasting game state: players={len(players)}, game_started={game_started}, winners={winners}")
     socketio.emit('update_game_state', {
-        'players': players,
+        'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
         'game_started': game_started,
         'winners': winners
     }, namespace='/')
@@ -105,14 +103,14 @@ def result():
 def handle_connect():
     print('Client connected')
     emit('update_game_state', {
-        'players': players,
+        'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
         'game_started': game_started,
         'winners': winners
     })
     if countdown_active and countdown_start_time is not None:
         remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
         emit('update_countdown', {
-            'countdown_active': countdown_active and remaining_time > 0,
+            'countdown_active': countdown_active,
             'remaining_time': remaining_time
         })
 
@@ -130,8 +128,8 @@ def reset():
     session['game_id'] = game_id
     session['submitted'] = False
     last_activity_time = time.time()
-    socketio.emit('game_reset', {}, namespace='/')  # Notify all clients to clear sessions
-    broadcast_game_state()  # Sync state with all clients
+    socketio.emit('game_reset', {}, namespace='/')
+    broadcast_game_state()
     return redirect(url_for('index'))
 
 def countdown():
@@ -140,16 +138,16 @@ def countdown():
         elapsed_time = time.time() - countdown_start_time
         remaining_time = max(0, countdown_duration - elapsed_time)
         socketio.emit('update_countdown', {
-            'countdown_active': countdown_active and remaining_time > 0,
+            'countdown_active': countdown_active,
             'remaining_time': remaining_time
         }, namespace='/')
         if remaining_time <= 0:
             countdown_active = False
             game_started = True
             winners = get_middle_players(players)
-            broadcast_game_state()  # Update winners to all clients
+            broadcast_game_state()
             socketio.emit('redirect_to_result', {}, namespace='/')
-            socketio.start_background_task(auto_reset)  # Start auto-reset check
+            socketio.start_background_task(auto_reset)
             break
         socketio.sleep(0.1)
 
@@ -173,7 +171,7 @@ def auto_reset():
 @socketio.on('game_reset')
 def handle_game_reset():
     session.clear()
-    session['game_id'] = request.sid  # Unique per client
+    session['game_id'] = request.sid
     session['submitted'] = False
 
 if __name__ == '__main__':
