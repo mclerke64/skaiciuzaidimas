@@ -48,10 +48,10 @@ def broadcast_game_state():
     last_activity_time = time.time()
     print(f"Broadcasting game state: players={len(players)}, game_started={game_started}, winners={winners}")
     socketio.emit('update_game_state', {
-        'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
+        'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],  # Always hide guesses until game ends
         'game_started': game_started,
         'winners': winners
-    }, namespace='/')
+    }, namespace='/', broadcast=True)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -103,16 +103,16 @@ def result():
 def handle_connect():
     print('Client connected')
     emit('update_game_state', {
-        'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
+        'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
         'game_started': game_started,
         'winners': winners
-    })
+    }, namespace='/')
     if countdown_active and countdown_start_time is not None:
         remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
         emit('update_countdown', {
             'countdown_active': countdown_active,
             'remaining_time': remaining_time
-        })
+        }, namespace='/')
 
 @app.route('/reset', methods=['POST'])
 def reset():
@@ -128,7 +128,7 @@ def reset():
     session['game_id'] = game_id
     session['submitted'] = False
     last_activity_time = time.time()
-    socketio.emit('game_reset', {}, namespace='/')
+    socketio.emit('game_reset', {}, namespace='/', broadcast=True)
     broadcast_game_state()
     return redirect(url_for('index'))
 
@@ -140,13 +140,13 @@ def countdown():
         socketio.emit('update_countdown', {
             'countdown_active': countdown_active,
             'remaining_time': remaining_time
-        }, namespace='/')
+        }, namespace='/', broadcast=True)
         if remaining_time <= 0:
             countdown_active = False
             game_started = True
             winners = get_middle_players(players)
             broadcast_game_state()
-            socketio.emit('redirect_to_result', {}, namespace='/')
+            socketio.emit('redirect_to_result', {}, namespace='/', broadcast=True)
             socketio.start_background_task(auto_reset)
             break
         socketio.sleep(0.1)
@@ -163,7 +163,7 @@ def auto_reset():
             countdown_start_time = None
             countdown_active = False
             game_id = str(uuid.uuid4())
-            socketio.emit('game_reset', {}, namespace='/')
+            socketio.emit('game_reset', {}, namespace='/', broadcast=True)
             broadcast_game_state()
             break
         socketio.sleep(1)
