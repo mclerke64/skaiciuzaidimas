@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['SESSION_TYPE'] = 'filesystem'
-socketio = SocketIO(app, async_mode='threading')  # Use threading, compatible with Gunicorn
+socketio = SocketIO(app, async_mode='threading')  # Revert to threading
 from flask_session import Session
 Session(app)
 
@@ -52,7 +52,7 @@ def broadcast_game_state():
             'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, namespace='/', broadcast=True)
+        }, namespace='/')  # Removed broadcast=True
     except Exception as e:
         print(f"Broadcast error: {str(e)}")
 
@@ -144,7 +144,7 @@ def reset():
         session['game_id'] = game_id
         session['submitted'] = False
         last_activity_time = time.time()
-        socketio.emit('game_reset', {}, namespace='/', broadcast=True)
+        socketio.emit('game_reset', {}, namespace='/')
         broadcast_game_state()
         return redirect(url_for('index'))
     except Exception as e:
@@ -159,13 +159,13 @@ def countdown():
         socketio.emit('update_countdown', {
             'countdown_active': countdown_active,
             'remaining_time': remaining_time
-        }, namespace='/', broadcast=True)
+        }, namespace='/')
         if remaining_time <= 0:
             countdown_active = False
             game_started = True
             winners = get_middle_players(players)
             broadcast_game_state()
-            socketio.emit('redirect_to_result', {}, namespace='/', broadcast=True)
+            socketio.emit('redirect_to_result', {}, namespace='/')
             socketio.start_background_task(auto_reset)
             break
         socketio.sleep(0.1)
@@ -182,7 +182,7 @@ def auto_reset():
             countdown_start_time = None
             countdown_active = False
             game_id = str(uuid.uuid4())
-            socketio.emit('game_reset', {}, namespace='/', broadcast=True)
+            socketio.emit('game_reset', {}, namespace='/')
             broadcast_game_state()
             break
         socketio.sleep(1)
