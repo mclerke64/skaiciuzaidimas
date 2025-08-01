@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['SESSION_TYPE'] = 'filesystem'
-socketio = SocketIO(app, async_mode='threading')  # Using threading as per previous decision
+socketio = SocketIO(app, async_mode='threading')
 from flask_session import Session
 Session(app)
 
@@ -33,15 +33,12 @@ def get_middle_players(players):
     if len(unique_guesses) < 3:
         return []
     if len(unique_guesses) % 2 == 0:
-        return []
+        return []  # No middle if even number of unique guesses
     middle_index = len(unique_guesses) // 2
     middle_guess = unique_guesses[middle_index]
     print(f"Middle guess: {middle_guess}")
-    if guess_counts[middle_guess] == 1:
-        for p in players:
-            if p['guess'] == middle_guess:
-                return [p]
-    return []
+    middle_players = [p for p in players if p['guess'] == middle_guess]
+    return middle_players if middle_players else []
 
 def broadcast_game_state():
     global last_activity_time
@@ -52,7 +49,7 @@ def broadcast_game_state():
             'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, namespace='/')
+        }, namespace='/', broadcast=True)
     except Exception as e:
         print(f"Broadcast error: {str(e)}")
 
@@ -166,13 +163,13 @@ def countdown():
         socketio.emit('update_countdown', {
             'countdown_active': countdown_active,
             'remaining_time': remaining_time
-        }, namespace='/')
+        }, namespace='/', broadcast=True)
         if remaining_time <= 0:
             countdown_active = False
             game_started = True
             winners = get_middle_players(players)
             broadcast_game_state()
-            socketio.emit('redirect_to_result', {}, namespace='/')
+            socketio.emit('redirect_to_result', {}, namespace='/', broadcast=True)
             socketio.start_background_task(auto_reset)
             break
         socketio.sleep(0.1)
