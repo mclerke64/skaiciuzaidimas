@@ -47,17 +47,20 @@ def broadcast_game_state():
     global last_activity_time
     last_activity_time = time.time()
     print(f"Broadcasting game state: players={len(players)}, game_started={game_started}, winners={winners}")
-    socketio.emit('update_game_state', {
-        'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
-        'game_started': game_started,
-        'winners': winners
-    }, namespace='/', broadcast=True)
+    try:
+        socketio.emit('update_game_state', {
+            'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
+            'game_started': game_started,
+            'winners': winners
+        }, namespace='/', broadcast=True)
+    except Exception as e:
+        print(f"Broadcast error: {str(e)}")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
     try:
-        if 'game_id' not in session or session['game_id'] != game_id:
+        if 'game_id' not in session:
             session['game_id'] = game_id
             session['submitted'] = False
         if request.method == 'POST' and not game_started:
@@ -86,7 +89,7 @@ def index():
                     socketio.start_background_task(countdown)
                 elif len(players) > 3 and countdown_active:
                     countdown_start_time = time.time()
-            except ValueError:
+            except ValueError as ve:
                 return render_template('index.html', players=players, game_started=game_started,
                                       winners=winners, countdown_active=countdown_active,
                                       error="Guess must be a valid number!")
@@ -111,17 +114,20 @@ def result():
 @socketio.on('connect', namespace='/')
 def handle_connect():
     print('Client connected')
-    emit('update_game_state', {
-        'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
-        'game_started': game_started,
-        'winners': winners
-    }, namespace='/')
-    if countdown_active and countdown_start_time is not None:
-        remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
-        emit('update_countdown', {
-            'countdown_active': countdown_active,
-            'remaining_time': remaining_time
+    try:
+        emit('update_game_state', {
+            'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
+            'game_started': game_started,
+            'winners': winners
         }, namespace='/')
+        if countdown_active and countdown_start_time is not None:
+            remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
+            emit('update_countdown', {
+                'countdown_active': countdown_active,
+                'remaining_time': remaining_time
+            }, namespace='/')
+    except Exception as e:
+        print(f"Error in connect: {str(e)}")
 
 @app.route('/reset', methods=['POST'])
 def reset():
