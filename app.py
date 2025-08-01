@@ -48,7 +48,7 @@ def broadcast_game_state():
     last_activity_time = time.time()
     print(f"Broadcasting game state: players={len(players)}, game_started={game_started}, winners={winners}")
     socketio.emit('update_game_state', {
-        'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],  # Always hide guesses until game ends
+        'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
         'game_started': game_started,
         'winners': winners
     }, namespace='/', broadcast=True)
@@ -56,13 +56,17 @@ def broadcast_game_state():
 @app.route('/', methods=['GET', 'POST'])
 def index():
     global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
-    if 'game_id' not in session or session['game_id'] != game_id:
-        session['game_id'] = game_id
-        session['submitted'] = False
-    if request.method == 'POST' and not game_started:
-        name = request.form.get('name')
-        guess = request.form.get('guess')
-        if name and guess:
+    try:
+        if 'game_id' not in session or session['game_id'] != game_id:
+            session['game_id'] = game_id
+            session['submitted'] = False
+        if request.method == 'POST' and not game_started:
+            name = request.form.get('name')
+            guess = request.form.get('guess')
+            if not name or not guess:
+                return render_template('index.html', players=players, game_started=game_started,
+                                      winners=winners, countdown_active=countdown_active,
+                                      error="Please provide both name and guess!")
             try:
                 guess = int(guess)
                 if not (1 <= guess <= 100):
@@ -86,18 +90,23 @@ def index():
                 return render_template('index.html', players=players, game_started=game_started,
                                       winners=winners, countdown_active=countdown_active,
                                       error="Guess must be a valid number!")
-        else:
-            return render_template('index.html', players=players, game_started=game_started,
-                                  winners=winners, countdown_active=countdown_active,
-                                  error="Please provide both name and guess!")
-    return render_template('index.html', players=players, game_started=game_started,
-                          winners=winners, countdown_active=countdown_active)
+        return render_template('index.html', players=players, game_started=game_started,
+                              winners=winners, countdown_active=countdown_active)
+    except Exception as e:
+        print(f"Error in index: {str(e)}")
+        return render_template('index.html', players=players, game_started=game_started,
+                              winners=winners, countdown_active=countdown_active,
+                              error="An internal error occurred. Please try again.")
 
 @app.route('/result')
 def result():
     global players, winners, game_started
-    print(f"Rendering result page: players={len(players)}, winners={winners}")
-    return render_template('result.html', players=players, winners=winners, game_started=game_started)
+    try:
+        print(f"Rendering result page: players={len(players)}, winners={winners}")
+        return render_template('result.html', players=players, winners=winners, game_started=game_started)
+    except Exception as e:
+        print(f"Error in result: {str(e)}")
+        return "Internal Server Error", 500
 
 @socketio.on('connect', namespace='/')
 def handle_connect():
@@ -117,20 +126,24 @@ def handle_connect():
 @app.route('/reset', methods=['POST'])
 def reset():
     global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
-    print('Resetting game')
-    players = []
-    game_started = False
-    winners = []
-    countdown_start_time = None
-    countdown_active = False
-    game_id = str(uuid.uuid4())
-    session.clear()
-    session['game_id'] = game_id
-    session['submitted'] = False
-    last_activity_time = time.time()
-    socketio.emit('game_reset', {}, namespace='/', broadcast=True)
-    broadcast_game_state()
-    return redirect(url_for('index'))
+    try:
+        print('Resetting game')
+        players = []
+        game_started = False
+        winners = []
+        countdown_start_time = None
+        countdown_active = False
+        game_id = str(uuid.uuid4())
+        session.clear()
+        session['game_id'] = game_id
+        session['submitted'] = False
+        last_activity_time = time.time()
+        socketio.emit('game_reset', {}, namespace='/', broadcast=True)
+        broadcast_game_state()
+        return redirect(url_for('index'))
+    except Exception as e:
+        print(f"Error in reset: {str(e)}")
+        return "Internal Server Error", 500
 
 def countdown():
     global countdown_active, game_started, winners, countdown_start_time, last_activity_time
@@ -170,9 +183,12 @@ def auto_reset():
 
 @socketio.on('game_reset')
 def handle_game_reset():
-    session.clear()
-    session['game_id'] = request.sid
-    session['submitted'] = False
+    try:
+        session.clear()
+        session['game_id'] = request.sid
+        session['submitted'] = False
+    except Exception as e:
+        print(f"Error in game_reset: {str(e)}")
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
