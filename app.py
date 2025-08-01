@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['SESSION_TYPE'] = 'filesystem'
-socketio = SocketIO(app, async_mode='threading')  # Revert to threading
+socketio = SocketIO(app, async_mode='threading')  # Using threading as per previous decision
 from flask_session import Session
 Session(app)
 
@@ -52,7 +52,7 @@ def broadcast_game_state():
             'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, namespace='/')  # Removed broadcast=True
+        }, namespace='/')
     except Exception as e:
         print(f"Broadcast error: {str(e)}")
 
@@ -60,9 +60,10 @@ def broadcast_game_state():
 def index():
     global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
     try:
-        if 'game_id' not in session:
+        if 'game_id' not in session or session.get('game_id') != game_id:
             session['game_id'] = game_id
             session['submitted'] = False
+            print(f"New session initialized with game_id: {game_id}")
         if request.method == 'POST' and not game_started:
             name = request.form.get('name')
             guess = request.form.get('guess')
@@ -82,6 +83,7 @@ def index():
                                           error="Name already taken!")
                 players.append({'name': name, 'guess': guess})
                 session['submitted'] = True
+                print(f"Player added: {name}, guess: {guess}, total players: {len(players)}")
                 broadcast_game_state()
                 if len(players) >= 3 and not countdown_active:
                     countdown_active = True
@@ -93,10 +95,15 @@ def index():
                 return render_template('index.html', players=players, game_started=game_started,
                                       winners=winners, countdown_active=countdown_active,
                                       error="Guess must be a valid number!")
+            except Exception as e:
+                print(f"Error adding player: {str(e)}")
+                return render_template('index.html', players=players, game_started=game_started,
+                                      winners=winners, countdown_active=countdown_active,
+                                      error="An internal error occurred while adding player.")
         return render_template('index.html', players=players, game_started=game_started,
                               winners=winners, countdown_active=countdown_active)
     except Exception as e:
-        print(f"Error in index: {str(e)}")
+        print(f"Unexpected error in index: {str(e)}")
         return render_template('index.html', players=players, game_started=game_started,
                               winners=winners, countdown_active=countdown_active,
                               error="An internal error occurred. Please try again.")
