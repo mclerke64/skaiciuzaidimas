@@ -33,11 +33,11 @@ def get_middle_players(players):
     if len(unique_guesses) < 3:
         return []
     if len(unique_guesses) % 2 == 0:
-        return []  # No middle if even number of unique guesses
+        return []  # No winner if even number of unique guesses
     middle_index = len(unique_guesses) // 2
     middle_guess = unique_guesses[middle_index]
     print(f"Middle guess: {middle_guess}")
-    middle_players = [p for p in players if p['guess'] == middle_guess]
+    middle_players = [p for p in players if p['guess'] == middle_guess and guess_counts[middle_guess] == 1]
     return middle_players if middle_players else []
 
 def broadcast_game_state():
@@ -87,7 +87,7 @@ def index():
                     countdown_start_time = time.time()
                     socketio.start_background_task(countdown)
                 elif len(players) > 3 and countdown_active:
-                    countdown_start_time = time.time()
+                    countdown_start_time = time.time()  # Reset timer for extra 10 seconds
             except ValueError as ve:
                 return render_template('index.html', players=players, game_started=game_started,
                                       winners=winners, countdown_active=countdown_active,
