@@ -3,44 +3,39 @@
 <head>
     <title>Numbers Game</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f0f0f0; /* Restored background */
-            margin: 0;
-            padding: 20px;
-        }
-        .number-grid {
-            display: grid;
-            grid-template-columns: repeat(10, 40px);
-            gap: 2px;
-            justify-content: center;
-            margin: 20px 0;
-        }
-        .number-grid div {
-            background-color: #ddd;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .players {
-            margin: 20px 0;
-        }
-        .timer {
-            font-size: 1.5em;
-            color: red;
-            margin: 10px 0;
-        }
+        body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+        .number-grid { display: grid; grid-template-columns: repeat(10, 40px); gap: 2px; justify-content: center; margin: 20px 0; }
+        .number-grid div { background-color: #ddd; padding: 10px; border-radius: 5px; }
+        .players, .result { margin: 20px 0; }
+        .timer { font-size: 1.5em; color: red; margin: 10px 0; }
+        .hidden { display: none; }
     </style>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         const socket = io();
-        let countdownInterval;
+        let gameSection = document.querySelector('.game-section');
+        let formSection = document.querySelector('.form-section');
+        let resultSection = document.querySelector('.result-section');
 
         socket.on('update_game_state', (data) => {
             const playersDiv = document.querySelector('.players');
             playersDiv.innerHTML = data.players.map(p => `${p.name} (guess hidden)`).join('<br>');
             if (data.game_started) {
-                window.location.href = '/result';
+                formSection.classList.add('hidden');
+                gameSection.classList.remove('hidden');
+                resultSection.classList.remove('hidden');
+                const winnersDiv = document.querySelector('.winners');
+                if (data.winners.length > 0) {
+                    winnersDiv.innerHTML = '<h2>Winners:</h2><ul>' + data.winners.map(w => `<li>${w.name} (guessed ${w.guess})</li>`).join('') + '</ul>';
+                } else {
+                    winnersDiv.innerHTML = '<h2>No unique middle guess - it\'s a draw!</h2>';
+                }
+                const allPlayersDiv = document.querySelector('.all-players');
+                allPlayersDiv.innerHTML = '<h3>All players:</h3><ul>' + data.players.map(p => `<li>${p.name} (guessed ${p.guess})</li>`).join('') + '</ul>';
+            } else {
+                gameSection.classList.add('hidden');
+                resultSection.classList.add('hidden');
+                formSection.classList.remove('hidden');
             }
         });
 
@@ -48,30 +43,10 @@
             const timerDiv = document.querySelector('.timer');
             if (data.countdown_active) {
                 timerDiv.style.display = 'block';
-                if (!countdownInterval) {
-                    countdownInterval = setInterval(() => {
-                        fetch('/').then(() => {
-                            socket.emit('get_countdown');
-                        });
-                        const remaining = Math.max(0, data.remaining_time - 0.1);
-                        timerDiv.textContent = `Time remaining: ${remaining.toFixed(1)}s`;
-                        if (remaining <= 0) {
-                            clearInterval(countdownInterval);
-                            countdownInterval = null;
-                        }
-                    }, 100);
-                }
+                timerDiv.textContent = `Time remaining: ${data.remaining_time.toFixed(1)}s`;
             } else {
                 timerDiv.style.display = 'none';
-                if (countdownInterval) {
-                    clearInterval(countdownInterval);
-                    countdownInterval = null;
-                }
             }
-        });
-
-        socket.on('redirect_to_result', () => {
-            window.location.href = '/result';
         });
 
         socket.on('game_reset', () => {
@@ -91,19 +66,29 @@
     <p>Numbers are from 1 to 100.</p>
     <p>The game will start when we have at least 3 players.</p>
     <p>+10 extra seconds if more players want to join.</p>
-    <div class="timer" style="display: none;">Time remaining: 10.0s</div>
-    <form method="POST">
-        <input type="text" name="name" placeholder="Your name" required><br><br>
-        <input type="number" name="guess" placeholder="Your guess" min="1" max="100" required><br><br>
-        <button type="submit">Join Game</button>
-    </form>
-    {% if error %}
-        <p style="color: red;">{{ error }}</p>
-    {% endif %}
-    <div class="players">
-        {% for player in players %}
-            {{ player.name }} (guess hidden)<br>
-        {% endfor %}
+
+    <div class="form-section" style="display: block;">
+        <form method="POST">
+            <input type="text" name="name" placeholder="Your name" required><br><br>
+            <input type="number" name="guess" placeholder="Your guess" min="1" max="100" required><br><br>
+            <button type="submit">Join Game</button>
+        </form>
+        {% if error %}
+            <p style="color: red;">{{ error }}</p>
+        {% endif %}
+    </div>
+
+    <div class="game-section hidden">
+        <div class="timer" style="display: none;">Time remaining: 10.0s</div>
+        <div class="players"></div>
+    </div>
+
+    <div class="result-section hidden">
+        <div class="winners"></div>
+        <div class="all-players"></div>
+        <form method="POST" action="/reset">
+            <button type="submit">Play Again</button>
+        </form>
     </div>
 </body>
 </html>
