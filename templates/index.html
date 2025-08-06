@@ -84,6 +84,11 @@
             location.reload();
         });
 
+        socket.on('reconnect', () => {
+            console.log('Reconnected to server');
+            socket.emit('update_game_state'); // Request full state on reconnect
+        });
+
         document.querySelector('form').addEventListener('submit', (e) => {
             e.preventDefault();
             const name = document.querySelector('input[name="name"]').value;
