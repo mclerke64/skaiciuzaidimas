@@ -175,19 +175,39 @@ def handle_connect():
             session['game_id'] = game_id
             session['submitted'] = False
         join_room(ROOM)
+        # Force initial state sync for all clients
         emit('update_game_state', {
             'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, room=request.sid)
+        }, room=ROOM)
         if countdown_active and countdown_start_time is not None:
             remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
             emit('update_countdown', {
                 'countdown_active': countdown_active,
                 'remaining_time': remaining_time
-            }, room=request.sid)
+            }, room=ROOM)
     except Exception as e:
         print(f"Error in connect: {str(e)}")
+
+@socketio.on('reconnect', namespace='/')
+def handle_reconnect():
+    print('Client reconnected')
+    try:
+        join_room(ROOM)
+        emit('update_game_state', {
+            'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
+            'game_started': game_started,
+            'winners': winners
+        }, room=ROOM)
+        if countdown_active and countdown_start_time is not None:
+            remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
+            emit('update_countdown', {
+                'countdown_active': countdown_active,
+                'remaining_time': remaining_time
+            }, room=ROOM)
+    except Exception as e:
+        print(f"Error in reconnect: {str(e)}")
 
 @socketio.on('game_reset')
 def handle_game_reset():
