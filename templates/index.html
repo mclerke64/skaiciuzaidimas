@@ -43,6 +43,7 @@
 
         socket.on('connect', () => {
             console.log('Connected to server');
+            socket.emit('request_state'); // Request initial state
         });
 
         socket.on('update_game_state', (data) => {
@@ -51,7 +52,6 @@
             const resultDiv = document.querySelector('.result');
             if (data.game_started) {
                 document.querySelector('.join-form').classList.add('hidden');
-                document.querySelector('.timer').classList.add('hidden');
                 if (data.winners && data.winners.length > 0) {
                     resultDiv.querySelector('.winners').innerHTML = `<h3>Winner is: ${data.winners[0].name} (guessed ${data.winners[0].guess})</h3>`;
                     resultDiv.querySelector('.draw').classList.add('hidden');
@@ -66,18 +66,8 @@
             }
         });
 
-        socket.on('update_countdown', (data) => {
-            const timerDiv = document.querySelector('.timer');
-            if (data.countdown_active) {
-                timerDiv.style.display = 'block';
-                timerDiv.textContent = `Time remaining: ${data.remaining_time.toFixed(1)}s`;
-            } else {
-                timerDiv.style.display = 'none';
-            }
-        });
-
         socket.on('game_ended', () => {
-            socket.emit('update_game_state');
+            socket.emit('request_state');
         });
 
         socket.on('game_reset', () => {
@@ -86,7 +76,11 @@
 
         socket.on('reconnect', () => {
             console.log('Reconnected to server');
-            socket.emit('update_game_state'); // Request full state on reconnect
+            socket.emit('request_state'); // Request state on reconnect
+        });
+
+        socket.on('request_state', () => {
+            socket.emit('request_state');
         });
 
         document.querySelector('form').addEventListener('submit', (e) => {
@@ -100,6 +94,7 @@
             }).then(response => response.text()).then(() => {
                 document.querySelector('input[name="name"]').value = '';
                 document.querySelector('input[name="guess"]').value = '';
+                socket.emit('request_state'); // Request state update after join
             }).catch(error => console.error('Error:', error));
         });
     </script>
