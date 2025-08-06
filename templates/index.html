@@ -41,6 +41,10 @@
         const socket = io();
         let gameActive = false;
 
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
         socket.on('update_game_state', (data) => {
             const playersDiv = document.querySelector('.players');
             playersDiv.innerHTML = data.players.map(p => `${p.name} (${p.guess !== 'hidden' ? 'guessed ' + p.guess : 'guess hidden'})`).join('<br>');
