@@ -46,7 +46,7 @@ def broadcast_game_state():
     print(f"Broadcasting game state: players={len(players)}, game_started={game_started}, winners={winners}")
     try:
         socketio.emit('update_game_state', {
-            'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
+            'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
         }, namespace='/')
@@ -129,20 +129,25 @@ def reset():
 def countdown():
     global countdown_active, game_started, winners, countdown_start_time, last_activity_time
     while countdown_active and countdown_start_time is not None:
-        elapsed_time = time.time() - countdown_start_time
-        remaining_time = max(0, countdown_duration - elapsed_time)
-        socketio.emit('update_countdown', {
-            'countdown_active': countdown_active,
-            'remaining_time': remaining_time
-        }, namespace='/')
-        if remaining_time <= 0:
-            countdown_active = False
-            game_started = True
-            winners = get_middle_players(players)
-            broadcast_game_state()
-            socketio.emit('game_ended', {}, namespace='/')
+        try:
+            elapsed_time = time.time() - countdown_start_time
+            remaining_time = max(0, countdown_duration - elapsed_time)
+            socketio.emit('update_countdown', {
+                'countdown_active': countdown_active,
+                'remaining_time': remaining_time
+            }, namespace='/')
+            print(f"Countdown: {remaining_time:.1f}s remaining")
+            if remaining_time <= 0:
+                countdown_active = False
+                game_started = True
+                winners = get_middle_players(players)
+                broadcast_game_state()
+                socketio.emit('game_ended', {}, namespace='/')
+                break
+            socketio.sleep(0.1)
+        except Exception as e:
+            print(f"Countdown error: {str(e)}")
             break
-        socketio.sleep(0.1)
 
 def auto_reset():
     global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
@@ -169,7 +174,7 @@ def handle_connect():
             session['game_id'] = game_id
             session['submitted'] = False
         emit('update_game_state', {
-            'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
+            'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
         }, namespace='/')
