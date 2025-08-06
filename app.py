@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['SESSION_TYPE'] = 'filesystem'
-socketio = SocketIO(app, async_mode='threading')
+socketio = SocketIO(app, async_mode='threading', ping_timeout=20, ping_interval=5)
 from flask_session import Session
 Session(app)
 
@@ -50,7 +50,7 @@ def broadcast_game_state():
             'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, room=ROOM)
+        }, room=ROOM, namespace='/')
     except Exception as e:
         print(f"Broadcast error: {str(e)}")
 
@@ -121,7 +121,7 @@ def reset():
         session['game_id'] = game_id
         session['submitted'] = False
         last_activity_time = time.time()
-        socketio.emit('game_reset', {}, room=ROOM)
+        socketio.emit('game_reset', {}, room=ROOM, namespace='/')
         return redirect(url_for('index'))
     except Exception as e:
         print(f"Error in reset: {str(e)}")
@@ -136,14 +136,14 @@ def countdown():
             socketio.emit('update_countdown', {
                 'countdown_active': countdown_active,
                 'remaining_time': remaining_time
-            }, room=ROOM)
+            }, room=ROOM, namespace='/')
             print(f"Countdown: {remaining_time:.1f}s remaining")
             if remaining_time <= 0:
                 countdown_active = False
                 game_started = True
                 winners = get_middle_players(players)
                 broadcast_game_state()
-                socketio.emit('game_ended', {}, room=ROOM)
+                socketio.emit('game_ended', {}, room=ROOM, namespace='/')
                 break
             socketio.sleep(0.1)
         except Exception as e:
@@ -162,7 +162,7 @@ def auto_reset():
             countdown_start_time = None
             countdown_active = False
             game_id = str(uuid.uuid4())
-            socketio.emit('game_reset', {}, room=ROOM)
+            socketio.emit('game_reset', {}, room=ROOM, namespace='/')
             broadcast_game_state()
             break
         socketio.sleep(1)
@@ -176,17 +176,11 @@ def handle_connect():
             session['submitted'] = False
         join_room(ROOM)
         # Force initial state sync for all clients
-        emit('update_game_state', {
+        socketio.emit('update_game_state', {
             'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, room=ROOM)
-        if countdown_active and countdown_start_time is not None:
-            remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
-            emit('update_countdown', {
-                'countdown_active': countdown_active,
-                'remaining_time': remaining_time
-            }, room=ROOM)
+        }, room=ROOM, namespace='/', include_self=True)
     except Exception as e:
         print(f"Error in connect: {str(e)}")
 
@@ -195,17 +189,11 @@ def handle_reconnect():
     print('Client reconnected')
     try:
         join_room(ROOM)
-        emit('update_game_state', {
+        socketio.emit('update_game_state', {
             'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, room=ROOM)
-        if countdown_active and countdown_start_time is not None:
-            remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
-            emit('update_countdown', {
-                'countdown_active': countdown_active,
-                'remaining_time': remaining_time
-            }, room=ROOM)
+        }, room=ROOM, namespace='/', include_self=True)
     except Exception as e:
         print(f"Error in reconnect: {str(e)}")
 
@@ -220,7 +208,7 @@ def handle_game_reset():
 
 @socketio.on('game_ended')
 def handle_game_ended():
-    emit('game_ended', room=ROOM)
+    emit('game_ended', room=ROOM, namespace='/')
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
