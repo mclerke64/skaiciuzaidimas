@@ -186,4 +186,14 @@ def handle_connect():
 def handle_game_reset():
     try:
         session.clear()
-        session['game_id'] = request
+        session['game_id'] = request.sid
+        session['submitted'] = False
+    except Exception as e:
+        print(f"Error in game_reset: {str(e)}")
+
+@socketio.on('game_ended')
+def handle_game_ended():
+    emit('game_ended', namespace='/')
+
+if __name__ == '__main__':
+    socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
