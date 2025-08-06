@@ -49,7 +49,7 @@ def broadcast_game_state():
             'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, namespace='/', broadcast=True)
+        }, namespace='/')
     except Exception as e:
         print(f"Broadcast error: {str(e)}")
 
@@ -134,13 +134,13 @@ def countdown():
         socketio.emit('update_countdown', {
             'countdown_active': countdown_active,
             'remaining_time': remaining_time
-        }, namespace='/', broadcast=True)
+        }, namespace='/')
         if remaining_time <= 0:
             countdown_active = False
             game_started = True
             winners = get_middle_players(players)
             broadcast_game_state()
-            socketio.emit('game_ended', {}, namespace='/', broadcast=True)
+            socketio.emit('game_ended', {}, namespace='/')
             break
         socketio.sleep(0.1)
 
@@ -165,6 +165,9 @@ def auto_reset():
 def handle_connect():
     print('Client connected')
     try:
+        if 'game_id' not in session or session.get('game_id') != game_id:
+            session['game_id'] = game_id
+            session['submitted'] = False
         emit('update_game_state', {
             'players': [{'name': p['name'], 'guess': 'hidden'} for p in players],
             'game_started': game_started,
@@ -183,14 +186,4 @@ def handle_connect():
 def handle_game_reset():
     try:
         session.clear()
-        session['game_id'] = request.sid
-        session['submitted'] = False
-    except Exception as e:
-        print(f"Error in game_reset: {str(e)}")
-
-@socketio.on('game_ended')
-def handle_game_ended():
-    emit('game_ended', broadcast=True)
-
-if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+        session['game_id'] = request
