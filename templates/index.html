@@ -43,20 +43,22 @@
 
         socket.on('update_game_state', (data) => {
             const playersDiv = document.querySelector('.players');
-            playersDiv.innerHTML = data.players.map(p => `${p.name} (guess hidden)`).join('<br>');
+            playersDiv.innerHTML = data.players.map(p => `${p.name} (${p.guess !== 'hidden' ? 'guessed ' + p.guess : 'guess hidden'})`).join('<br>');
             const resultDiv = document.querySelector('.result');
-            if (data.game_started && data.winners) {
-                resultDiv.querySelector('.winners').innerHTML = data.winners.map(w => `<li>${w.name} (guessed ${w.guess})</li>`).join('');
-                resultDiv.querySelector('.all-players').innerHTML = data.players.map(p => `<li>${p.name} (guessed ${p.guess})</li>`).join('');
-                resultDiv.classList.remove('hidden');
+            if (data.game_started) {
                 document.querySelector('.join-form').classList.add('hidden');
                 document.querySelector('.timer').classList.add('hidden');
-            } else if (data.game_started && !data.winners) {
-                resultDiv.querySelector('.draw').classList.remove('hidden');
-                resultDiv.querySelector('.all-players').innerHTML = data.players.map(p => `<li>${p.name} (guessed ${p.guess})</li>`).join('');
+                if (data.winners && data.winners.length > 0) {
+                    resultDiv.querySelector('.winners').innerHTML = `<h3>Winner is: ${data.winners[0].name} (guessed ${data.winners[0].guess})</h3>`;
+                    resultDiv.querySelector('.draw').classList.add('hidden');
+                } else {
+                    resultDiv.querySelector('.draw').innerHTML = '<h3>It’s a draw!</h3>';
+                    resultDiv.querySelector('.winners').classList.add('hidden');
+                }
+                resultDiv.querySelector('.all-players').innerHTML = '<h4>All players:</h4><ul>' + data.players.map(p => `<li>${p.name} (guessed ${p.guess})</li>`).join('') + '</ul>';
                 resultDiv.classList.remove('hidden');
-                document.querySelector('.join-form').classList.add('hidden');
-                document.querySelector('.timer').classList.add('hidden');
+            } else {
+                resultDiv.classList.add('hidden');
             }
         });
 
@@ -117,15 +119,14 @@
     <div class="players"></div>
     <div class="result hidden">
         <h2>Game Over!</h2>
-        <div class="winners" style="display: none;">
-            <h3>Winners:</h3>
-            <ul></ul>
+        <div class="winners">
+            <h3>Winner is:</h3>
         </div>
         <div class="draw" style="display: none;">
-            <p>No unique middle guess - it's a draw!</p>
+            <h3>It’s a draw!</h3>
         </div>
         <div class="all-players">
-            <p>All players:</p>
+            <h4>All players:</h4>
             <ul></ul>
         </div>
         <form method="POST" action="/reset">
