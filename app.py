@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['SESSION_TYPE'] = 'filesystem'
-socketio = SocketIO(app, async_mode='threading', ping_timeout=20, ping_interval=5)
+socketio = SocketIO(app, async_mode='threading', ping_timeout=60, ping_interval=25)
 from flask_session import Session
 Session(app)
 
@@ -50,7 +50,7 @@ def broadcast_game_state():
             'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, room=ROOM)
+        }, room=ROOM, namespace='/')
     except Exception as e:
         print(f"Broadcast error: {str(e)}")
 
@@ -143,7 +143,7 @@ def countdown():
                 game_started = True
                 winners = get_middle_players(players)
                 broadcast_game_state()
-                socketio.emit('game_ended', {}, room=ROOM, namespace='/')
+                socketio.emit('redirect_to_result', {}, room=ROOM, namespace='/')  # Trigger reload
                 break
             socketio.sleep(0.1)
         except Exception as e:
@@ -179,19 +179,26 @@ def handle_connect():
             'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, room=ROOM, namespace='/')
+        }, room=request.sid, namespace='/')
         if countdown_active and countdown_start_time is not None:
             remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
             emit('update_countdown', {
                 'countdown_active': countdown_active,
                 'remaining_time': remaining_time
-            }, room=ROOM, namespace='/')
+            }, room=request.sid, namespace='/')
     except Exception as e:
         print(f"Error in connect: {str(e)}")
 
 @socketio.on('disconnect', namespace='/')
 def handle_disconnect():
-    print('Client disconnected')
+    print(f'Client disconnected with session {request.sid}')
+    try:
+        # Clean up session on disconnect
+        if 'game_id' in session:
+            del session['game_id']
+            del session['submitted']
+    except Exception as e:
+        print(f"Error in disconnect: {str(e)}")
 
 @socketio.on('game_reset')
 def handle_game_reset():
@@ -205,6 +212,11 @@ def handle_game_reset():
 @socketio.on('game_ended')
 def handle_game_ended():
     emit('game_ended', room=ROOM, namespace='/')
+
+@socketio.on('redirect_to_result')
+def handle_redirect_to_result():
+    print('Redirecting to result page')
+    window.location.reload();  # Client-side reload
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
