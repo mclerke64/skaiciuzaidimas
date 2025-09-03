@@ -41,8 +41,13 @@
         const socket = io();
 
         socket.on('connect', () => {
-            console.log('Connected to server');
-            socket.emit('request_state');
+            console.log('Connected to server with sid:', socket.id);
+            fetchState();
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            fetchState(); // Retry state fetch on connection error
         });
 
         socket.on('update_game_state', (data) => {
@@ -85,9 +90,20 @@
         });
 
         socket.on('reconnect', () => {
-            console.log('Reconnected to server');
-            socket.emit('request_state');
+            console.log('Reconnected to server with sid:', socket.id);
+            fetchState();
         });
+
+        function fetchState() {
+            fetch('/')
+                .then(response => response.text())
+                .then(html => {
+                    document.open();
+                    document.write(html);
+                    document.close();
+                })
+                .catch(error => console.error('Error fetching state:', error));
+        }
 
         document.querySelector('form').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -100,7 +116,7 @@
             }).then(response => response.text()).then(() => {
                 document.querySelector('input[name="name"]').value = '';
                 document.querySelector('input[name="guess"]').value = '';
-                socket.emit('request_state'); // Request state update after join
+                fetchState(); // Refresh state after join
             }).catch(error => console.error('Error:', error));
         });
     </script>
