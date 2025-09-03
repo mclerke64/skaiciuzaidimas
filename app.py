@@ -50,7 +50,7 @@ def broadcast_game_state():
             'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, room=ROOM, namespace='/')
+        }, room=ROOM)
     except Exception as e:
         print(f"Broadcast error: {str(e)}")
 
@@ -98,9 +98,7 @@ def index():
                 return render_template('index.html', players=players, game_started=game_started,
                                       winners=winners, countdown_active=countdown_active,
                                       error="An internal error occurred while adding player.")
-        # Serve initial state via template
-        initial_players = [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players]
-        return render_template('index.html', players=initial_players, game_started=game_started,
+        return render_template('index.html', players=players, game_started=game_started,
                               winners=winners, countdown_active=countdown_active)
     except Exception as e:
         print(f"Unexpected error in index: {str(e)}")
@@ -177,17 +175,23 @@ def handle_connect():
             session['game_id'] = game_id
             session['submitted'] = False
         join_room(ROOM)
+        emit('update_game_state', {
+            'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
+            'game_started': game_started,
+            'winners': winners
+        }, room=ROOM, namespace='/')
+        if countdown_active and countdown_start_time is not None:
+            remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
+            emit('update_countdown', {
+                'countdown_active': countdown_active,
+                'remaining_time': remaining_time
+            }, room=ROOM, namespace='/')
     except Exception as e:
         print(f"Error in connect: {str(e)}")
 
-@socketio.on('reconnect', namespace='/')
-def handle_reconnect():
-    print('Client reconnected')
-    try:
-        join_room(ROOM)
-        broadcast_game_state()
-    except Exception as e:
-        print(f"Error in reconnect: {str(e)}")
+@socketio.on('disconnect', namespace='/')
+def handle_disconnect():
+    print('Client disconnected')
 
 @socketio.on('game_reset')
 def handle_game_reset():
