@@ -6,7 +6,7 @@ import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
-app.config['SESSION_TYPE'] = 'filesystem'  # Note: Consider Redis for persistence if issues persist
+app.config['SESSION_TYPE'] = 'filesystem'  # Note: Switch to 'redis' with external Redis if possible
 socketio = SocketIO(app, async_mode='threading', ping_timeout=60, ping_interval=25, logger=True, engineio_logger=True)
 from flask_session import Session
 Session(app)
@@ -98,7 +98,8 @@ def index():
                 return render_template('index.html', players=players, game_started=game_started,
                                       winners=winners, countdown_active=countdown_active,
                                       error="An internal error occurred while adding player.")
-        return render_template('index.html', players=players, game_started=game_started,
+        initial_players = [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players]
+        return render_template('index.html', players=initial_players, game_started=game_started,
                               winners=winners, countdown_active=countdown_active)
     except Exception as e:
         print(f"Unexpected error in index: {str(e)}")
@@ -171,9 +172,8 @@ def auto_reset():
 def handle_connect():
     print('Client connected with sid:', request.sid)
     try:
-        if 'game_id' not in session or session.get('game_id') != game_id:
-            session['game_id'] = game_id
-            session['submitted'] = False
+        session['game_id'] = game_id  # Force a new session on connect
+        session['submitted'] = False
         join_room(ROOM)
         # Send state to the connecting client
         emit('update_game_state', {
