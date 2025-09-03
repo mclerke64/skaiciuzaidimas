@@ -144,7 +144,7 @@ def countdown():
                 game_started = True
                 winners = get_middle_players(players)
                 broadcast_game_state()
-                socketio.emit('redirect_to_result', {}, room=ROOM, namespace='/')  # Trigger reload
+                # Remove automatic redirect, let "Play Again" handle it
                 break
             socketio.sleep(0.1)
         except Exception as e:
@@ -215,8 +215,7 @@ def handle_game_ended():
 
 @socketio.on('redirect_to_result')
 def handle_redirect_to_result():
-    print('Redirecting to result page')
-    window.location.reload();  # Client-side reload
+    pass  # Removed automatic reload logic
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
