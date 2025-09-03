@@ -6,8 +6,8 @@ import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
-app.config['SESSION_TYPE'] = 'filesystem'
-socketio = SocketIO(app, async_mode='threading', ping_timeout=60, ping_interval=25)
+app.config['SESSION_TYPE'] = 'filesystem'  # Consider switching to 'redis' if available
+socketio = SocketIO(app, async_mode='threading', ping_timeout=60, ping_interval=25, logger=True, engineio_logger=True)
 from flask_session import Session
 Session(app)
 
@@ -50,7 +50,7 @@ def broadcast_game_state():
             'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
             'winners': winners
-        }, room=ROOM, namespace='/')
+        }, room=ROOM, namespace='/', skip_sid=None)
     except Exception as e:
         print(f"Broadcast error: {str(e)}")
 
@@ -169,12 +169,13 @@ def auto_reset():
 
 @socketio.on('connect', namespace='/')
 def handle_connect():
-    print('Client connected')
+    print('Client connected with sid:', request.sid)
     try:
         if 'game_id' not in session or session.get('game_id') != game_id:
             session['game_id'] = game_id
             session['submitted'] = False
         join_room(ROOM)
+        # Send state to the connecting client, ignoring invalid sessions
         emit('update_game_state', {
             'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
@@ -193,8 +194,7 @@ def handle_connect():
 def handle_disconnect():
     print(f'Client disconnected with session {request.sid}')
     try:
-        # Clean up session on disconnect
-        if 'game_id' in session:
+        if 'game_id' in session and session.get('game_id') == game_id:
             del session['game_id']
             del session['submitted']
     except Exception as e:
