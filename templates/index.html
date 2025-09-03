@@ -81,8 +81,7 @@
         });
 
         socket.on('redirect_to_result', () => {
-            console.log('Redirecting to result...');
-            location.reload(); // Auto-reload on game end
+            // Do nothing, let "Play Again" handle the reload
         });
 
         socket.on('game_reset', () => {
