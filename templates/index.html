@@ -39,7 +39,6 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         const socket = io();
-        let gameActive = false;
 
         socket.on('connect', () => {
             console.log('Connected to server');
@@ -51,16 +50,15 @@
             playersDiv.innerHTML = data.players.map(p => `${p.name} (${p.guess !== 'hidden' ? 'guessed ' + p.guess : 'guess hidden'})`).join('<br>');
             const resultDiv = document.querySelector('.result');
             if (data.game_started) {
-                document.query-selector('.join-form').classList.add('hidden');
-                document.querySelector('.timer').classList.add('hidden');
+                document.querySelector('.join-form').classList.add('hidden');
                 if (data.winners && data.winners.length > 0) {
-                    resultDiv.querySelector('.winners').innerHTML = `<h3>Winner is: ${data.winners[0].name} (guessed ${data.winners[0].guess})</h3>`;
+                    resultDiv.querySelector('.winners').innerHTML = `<h3>The winner is: ${data.winners[0].name} (guessed ${data.winners[0].guess})</h3>`;
                     resultDiv.querySelector('.draw').classList.add('hidden');
                 } else {
                     resultDiv.querySelector('.draw').innerHTML = '<h3>It’s a draw!</h3>';
                     resultDiv.querySelector('.winners').classList.add('hidden');
                 }
-                resultDiv.querySelector('.all-players').innerHTML = '<h4>All players:</h4><ul>' + data.players.map(p => `<li>${p.name} (guessed ${p.guess})</li>`).join('') + '</ul>';
+                resultDiv.querySelector('.all-players').innerHTML = '<h4>Guesses are:</h4><ul>' + data.players.map(p => `<li>${p.name} (guessed ${p.guess})</li>`).join('') + '</ul>';
                 resultDiv.classList.remove('hidden');
             } else {
                 resultDiv.classList.add('hidden');
@@ -77,8 +75,9 @@
             }
         });
 
-        socket.on('game_ended', () => {
-            socket.emit('request_state');
+        socket.on('redirect_to_result', () => {
+            console.log('Redirecting to result...');
+            location.reload(); // Auto-reload on game end
         });
 
         socket.on('game_reset', () => {
@@ -90,22 +89,18 @@
             socket.emit('request_state');
         });
 
-        socket.on('request_state', () => {
-            socket.emit('request_state');
-        });
-
         document.querySelector('form').addEventListener('submit', (e) => {
             e.preventDefault();
-            const name = document.query_selector('input[name="name"]').value;
-            const guess = document.query_selector('input[name="guess"]').value;
+            const name = document.querySelector('input[name="name"]').value;
+            const guess = document.querySelector('input[name="guess"]').value;
             fetch('/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `name=${encodeURIComponent(name)}&guess=${encodeURIComponent(guess)}`
             }).then(response => response.text()).then(() => {
-                document.query_selector('input[name="name"]').value = '';
-                document.query_selector('input[name="guess"]').value = '';
-                socket.emit('request_state'); // Request state update after joining
+                document.querySelector('input[name="name"]').value = '';
+                document.querySelector('input[name="guess"]').value = '';
+                socket.emit('request_state'); // Request state update after join
             }).catch(error => console.error('Error:', error));
         });
     </script>
