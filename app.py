@@ -98,7 +98,9 @@ def index():
                 return render_template('index.html', players=players, game_started=game_started,
                                       winners=winners, countdown_active=countdown_active,
                                       error="An internal error occurred while adding player.")
-        return render_template('index.html', players=players, game_started=game_started,
+        # Serve initial state via template
+        initial_players = [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players]
+        return render_template('index.html', players=initial_players, game_started=game_started,
                               winners=winners, countdown_active=countdown_active)
     except Exception as e:
         print(f"Unexpected error in index: {str(e)}")
@@ -175,12 +177,6 @@ def handle_connect():
             session['game_id'] = game_id
             session['submitted'] = False
         join_room(ROOM)
-        # Force initial state sync for all clients
-        socketio.emit('update_game_state', {
-            'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
-            'game_started': game_started,
-            'winners': winners
-        }, room=ROOM, namespace='/', include_self=True)
     except Exception as e:
         print(f"Error in connect: {str(e)}")
 
@@ -189,11 +185,7 @@ def handle_reconnect():
     print('Client reconnected')
     try:
         join_room(ROOM)
-        socketio.emit('update_game_state', {
-            'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
-            'game_started': game_started,
-            'winners': winners
-        }, room=ROOM, namespace='/', include_self=True)
+        broadcast_game_state()
     except Exception as e:
         print(f"Error in reconnect: {str(e)}")
 
