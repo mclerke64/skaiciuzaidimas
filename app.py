@@ -6,7 +6,7 @@ import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
-app.config['SESSION_TYPE'] = 'filesystem'  # Consider switching to 'redis' if available
+app.config['SESSION_TYPE'] = 'filesystem'  # Note: Consider Redis for persistence if issues persist
 socketio = SocketIO(app, async_mode='threading', ping_timeout=60, ping_interval=25, logger=True, engineio_logger=True)
 from flask_session import Session
 Session(app)
@@ -175,7 +175,7 @@ def handle_connect():
             session['game_id'] = game_id
             session['submitted'] = False
         join_room(ROOM)
-        # Send state to the connecting client, ignoring invalid sessions
+        # Send state to the connecting client
         emit('update_game_state', {
             'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
             'game_started': game_started,
