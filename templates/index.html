@@ -24,11 +24,6 @@
         .players, .result {
             margin: 20px 0;
         }
-        .timer {
-            font-size: 1.5em;
-            color: red;
-            margin: 10px 0;
-        }
         .hidden {
             display: none;
         }
@@ -43,7 +38,6 @@
 
         socket.on('connect', () => {
             console.log('Connected to server');
-            socket.emit('request_state'); // Request initial state
         });
 
         socket.on('update_game_state', (data) => {
@@ -67,7 +61,7 @@
         });
 
         socket.on('game_ended', () => {
-            socket.emit('request_state');
+            socket.emit('request_state'); // Request state after game ends
         });
 
         socket.on('game_reset', () => {
@@ -77,10 +71,6 @@
         socket.on('reconnect', () => {
             console.log('Reconnected to server');
             socket.emit('request_state'); // Request state on reconnect
-        });
-
-        socket.on('request_state', () => {
-            socket.emit('request_state');
         });
 
         document.querySelector('form').addEventListener('submit', (e) => {
@@ -111,7 +101,6 @@
     <p>Numbers are from 1 to 100.</p>
     <p>The game will start when we have at least 3 players.</p>
     <p>+10 extra seconds if more players want to join.</p>
-    <div class="timer" style="display: none;">Time remaining: 10.0s</div>
     <form class="join-form" method="POST">
         <input type="text" name="name" placeholder="Your name" required><br><br>
         <input type="number" name="guess" placeholder="Your guess" min="1" max="100" required><br><br>
@@ -120,7 +109,11 @@
     {% if error %}
         <p class="error">{{ error }}</p>
     {% endif %}
-    <div class="players"></div>
+    <div class="players">
+        {% for player in players %}
+            {{ player.name }} ({{ player.guess if game_started else 'guess hidden' }})
+        {% endfor %}
+    </div>
     <div class="result hidden">
         <h2>Game Over!</h2>
         <div class="winners">
