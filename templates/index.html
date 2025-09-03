@@ -24,6 +24,11 @@
         .players, .result {
             margin: 20px 0;
         }
+        .timer {
+            font-size: 1.5em;
+            color: red;
+            margin: 10px 0;
+        }
         .hidden {
             display: none;
         }
@@ -38,6 +43,7 @@
 
         socket.on('connect', () => {
             console.log('Connected to server');
+            socket.emit('request_state');
         });
 
         socket.on('update_game_state', (data) => {
@@ -45,7 +51,8 @@
             playersDiv.innerHTML = data.players.map(p => `${p.name} (${p.guess !== 'hidden' ? 'guessed ' + p.guess : 'guess hidden'})`).join('<br>');
             const resultDiv = document.querySelector('.result');
             if (data.game_started) {
-                document.querySelector('.join-form').classList.add('hidden');
+                document.query-selector('.join-form').classList.add('hidden');
+                document.querySelector('.timer').classList.add('hidden');
                 if (data.winners && data.winners.length > 0) {
                     resultDiv.querySelector('.winners').innerHTML = `<h3>Winner is: ${data.winners[0].name} (guessed ${data.winners[0].guess})</h3>`;
                     resultDiv.querySelector('.draw').classList.add('hidden');
@@ -60,8 +67,18 @@
             }
         });
 
+        socket.on('update_countdown', (data) => {
+            const timerDiv = document.querySelector('.timer');
+            if (data.countdown_active) {
+                timerDiv.style.display = 'block';
+                timerDiv.textContent = `Time remaining: ${data.remaining_time.toFixed(1)}s`;
+            } else {
+                timerDiv.style.display = 'none';
+            }
+        });
+
         socket.on('game_ended', () => {
-            socket.emit('request_state'); // Request state after game ends
+            socket.emit('request_state');
         });
 
         socket.on('game_reset', () => {
@@ -70,21 +87,25 @@
 
         socket.on('reconnect', () => {
             console.log('Reconnected to server');
-            socket.emit('request_state'); // Request state on reconnect
+            socket.emit('request_state');
+        });
+
+        socket.on('request_state', () => {
+            socket.emit('request_state');
         });
 
         document.querySelector('form').addEventListener('submit', (e) => {
             e.preventDefault();
-            const name = document.querySelector('input[name="name"]').value;
-            const guess = document.querySelector('input[name="guess"]').value;
+            const name = document.query_selector('input[name="name"]').value;
+            const guess = document.query_selector('input[name="guess"]').value;
             fetch('/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `name=${encodeURIComponent(name)}&guess=${encodeURIComponent(guess)}`
             }).then(response => response.text()).then(() => {
-                document.querySelector('input[name="name"]').value = '';
-                document.querySelector('input[name="guess"]').value = '';
-                socket.emit('request_state'); // Request state update after join
+                document.query_selector('input[name="name"]').value = '';
+                document.query_selector('input[name="guess"]').value = '';
+                socket.emit('request_state'); // Request state update after joining
             }).catch(error => console.error('Error:', error));
         });
     </script>
@@ -101,6 +122,7 @@
     <p>Numbers are from 1 to 100.</p>
     <p>The game will start when we have at least 3 players.</p>
     <p>+10 extra seconds if more players want to join.</p>
+    <div class="timer" style="display: none;">Time remaining: 10.0s</div>
     <form class="join-form" method="POST">
         <input type="text" name="name" placeholder="Your name" required><br><br>
         <input type="number" name="guess" placeholder="Your guess" min="1" max="100" required><br><br>
@@ -109,11 +131,7 @@
     {% if error %}
         <p class="error">{{ error }}</p>
     {% endif %}
-    <div class="players">
-        {% for player in players %}
-            {{ player.name }} ({{ player.guess if game_started else 'guess hidden' }})
-        {% endfor %}
-    </div>
+    <div class="players"></div>
     <div class="result hidden">
         <h2>Game Over!</h2>
         <div class="winners">
