@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['SESSION_TYPE'] = 'filesystem'  # Note: Switch to 'redis' with external Redis if possible
-socketio = SocketIO(app, async_mode='threading', ping_timeout=60, ping_interval=25, logger=True, engineio_logger=True)
+socketio = SocketIO(app, async_mode='threading', ping_timeout=30, ping_interval=15, logger=True, engineio_logger=True)
 from flask_session import Session
 Session(app)
 
@@ -16,7 +16,7 @@ players = []
 game_started = False
 winners = []
 countdown_start_time = None
-countdown_duration = 10
+countdown_duration = 3  # Further reduced to 3 seconds to avoid timeout
 countdown_active = False
 game_id = str(uuid.uuid4())
 last_activity_time = time.time()
@@ -144,13 +144,19 @@ def countdown():
                 game_started = True
                 winners = get_middle_players(players)
                 broadcast_game_state()
-                # Force server-side state update to ensure all see the result
-                socketio.emit('force_update', {}, room=ROOM, namespace='/')
-                break
+                # Redirect to result page to ensure all see it
+                return redirect(url_for('result'))
             socketio.sleep(0.1)
         except Exception as e:
             print(f"Countdown error: {str(e)}")
             break
+
+@app.route('/result')
+def result():
+    global players, game_started, winners, countdown_active
+    if game_started:
+        return render_template('result.html', players=players, winners=winners)
+    return redirect(url_for('index'))
 
 def auto_reset():
     global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
@@ -214,11 +220,6 @@ def handle_game_reset():
 @socketio.on('game_ended')
 def handle_game_ended():
     emit('game_ended', room=ROOM, namespace='/')
-
-@socketio.on('force_update')
-def handle_force_update():
-    # Trigger a client-side fetch to ensure state is updated
-    socketio.emit('force_fetch', {}, room=ROOM, namespace='/')
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
