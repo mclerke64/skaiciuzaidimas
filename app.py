@@ -144,7 +144,8 @@ def countdown():
                 game_started = True
                 winners = get_middle_players(players)
                 broadcast_game_state()
-                # Remove automatic redirect, let "Play Again" handle it
+                # Force server-side state update to ensure all see the result
+                socketio.emit('force_update', {}, room=ROOM, namespace='/')
                 break
             socketio.sleep(0.1)
         except Exception as e:
@@ -155,6 +156,7 @@ def auto_reset():
     global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
     while True:
         inactive_time = time.time() - last_activity_time
+        # Only reset if game hasn't started and fewer than 3 players
         if not countdown_active and not game_started and len(players) < 3 and inactive_time >= 10:
             print('Auto-resetting due to inactivity')
             players = []
@@ -213,9 +215,10 @@ def handle_game_reset():
 def handle_game_ended():
     emit('game_ended', room=ROOM, namespace='/')
 
-@socketio.on('redirect_to_result')
-def handle_redirect_to_result():
-    pass  # Removed automatic reload logic
+@socketio.on('force_update')
+def handle_force_update():
+    # Trigger a client-side fetch to ensure state is updated
+    socketio.emit('force_fetch', {}, room=ROOM, namespace='/')
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
