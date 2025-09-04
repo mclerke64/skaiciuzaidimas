@@ -1,38 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Numbers Game Result</title>
+    <title>Numbers Game - Result</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .number-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 40px);
+            gap: 2px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .number-grid div {
+            background-color: #ddd;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .result {
+            margin: 20px 0;
+        }
     </style>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>
-        const socket = io();
-        socket.on('game_reset', () => {
-            location.reload();
-        });
-    </script>
 </head>
 <body>
+    <div class="number-grid">
+        {% for i in range(1, 101) %}
+            <div>{{ i }}</div>
+        {% endfor %}
+    </div>
     <h1>Game Over!</h1>
-    {% if winners %}
-        <h2>Winners:</h2>
+    <div class="result">
+        {% if winners and winners|length > 0 %}
+            <h2>The winner is: {{ winners[0].name }} (guessed {{ winners[0].guess }})</h2>
+        {% else %}
+            <h2>It’s a draw!</h2>
+        {% endif %}
+        <h3>Guesses are:</h3>
         <ul>
-            {% for winner in winners %}
-                <li>{{ winner.name }} (guessed {{ winner.guess }})</li>
+            {% for player in players %}
+                <li>{{ player.name }} (guessed {{ player.guess }})</li>
             {% endfor %}
         </ul>
-    {% else %}
-        <p>No unique middle guess - it's a draw!</p>
-    {% endif %}
-    <p>All players:</p>
-    <ul>
-        {% for player in players %}
-            <li>{{ player.name }} (guessed {{ player.guess }})</li>
-        {% endfor %}
-    </ul>
-    <form method="POST" action="/reset">
-        <button type="submit">Reset Game</button>
-    </form>
+        <form method="POST" action="/reset">
+            <button type="submit">Play Again</button>
+        </form>
+    </div>
 </body>
 </html>
