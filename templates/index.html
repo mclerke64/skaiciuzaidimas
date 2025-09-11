@@ -36,6 +36,20 @@
             color: red;
         }
     </style>
+    <script>
+        function checkGameState() {
+            fetch('/').then(response => response.text()).then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const gameStarted = doc.body.querySelector('input[name="game_started"]')?.value === 'true';
+                const countdownActive = doc.body.querySelector('input[name="countdown_active"]')?.value === 'true';
+                if (gameStarted && !countdownActive) {
+                    window.location.href = '/result';
+                }
+            }).catch(error => console.error('Error checking game state:', error));
+        }
+        setInterval(checkGameState, 1000); // Poll every second
+    </script>
 </head>
 <body>
     <div class="number-grid">
@@ -66,5 +80,7 @@
             <br>
         {% endfor %}
     </div>
+    <input type="hidden" name="game_started" value="{{ game_started }}">
+    <input type="hidden" name="countdown_active" value="{{ countdown_active }}">
 </body>
 </html>
