@@ -14,7 +14,7 @@ players = []
 game_started = False
 winners = []
 countdown_start_time = None
-countdown_duration = 5  # Reduced to 5 seconds to avoid timeout
+countdown_duration = 3  # Reduced to 3 seconds
 countdown_active = False
 game_id = str(uuid.uuid4())
 last_activity_time = time.time()
@@ -58,7 +58,7 @@ def index():
                 countdown_start_time = time.time()
         except ValueError:
             return render_template('index.html', error="Guess must be a valid number!")
-    # Check countdown on every request
+    # Non-blocking countdown check
     if countdown_active:
         remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
         if remaining_time <= 0:
