@@ -35,6 +35,10 @@
         .error {
             color: red;
         }
+        .refresh-hint {
+            color: blue;
+            font-style: italic;
+        }
     </style>
     <script>
         function checkGameState() {
@@ -79,6 +83,9 @@
             <br>
         {% endfor %}
     </div>
+    {% if countdown_active and not game_started %}
+        <p class="refresh-hint">If the game doesn’t update, please refresh the page.</p>
+    {% endif %}
     <input type="hidden" name="game_started" value="{{ game_started }}">
 </body>
 </html>
