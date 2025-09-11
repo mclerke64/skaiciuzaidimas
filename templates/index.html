@@ -36,32 +36,35 @@
             color: red;
         }
     </style>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>
-        const socket = io();
-
-        socket.on('connect', () => {
-            console.log('Connected to server with sid:', socket.id);
-            fetchState();
-        });
-
-        socket.on('connect_error', (error) => {
-            console.error('Connection error:', error);
-            fetchState(); // Retry state fetch on connection error
-        });
-
-        socket.on('update_game_state', (data) => {
-            const playersDiv = document.querySelector('.players');
-            playersDiv.innerHTML = data.players.map(p => `${p.name} (${p.guess !== 'hidden' ? 'guessed ' + p.guess : 'guess hidden'})`).join('<br>');
-            const resultDiv = document.querySelector('.result');
-            if (data.game_started) {
-                document.querySelector('.join-form').classList.add('hidden');
-                if (data.winners && data.winners.length > 0) {
-                    resultDiv.querySelector('.winners').innerHTML = `<h3>The winner is: ${data.winners[0].name} (guessed ${data.winners[0].guess})</h3>`;
-                    resultDiv.querySelector('.draw').classList.add('hidden');
-                } else {
-                    resultDiv.querySelector('.draw').innerHTML = '<h3>It’s a draw!</h3>';
-                    resultDiv.querySelector('.winners').classList.add('hidden');
-                }
-                resultDiv.querySelector('.all-players').innerHTML = '<h4>Guesses are:</h4><ul>' + data.players.map(p => `<li>${p.name} (guessed ${p.guess})</li>`).join('') + '</ul>';
-                resultDiv.classList.remove('hidden');
+</head>
+<body>
+    <div class="number-grid">
+        {% for i in range(1, 101) %}
+            <div>{{ i }}</div>
+        {% endfor %}
+    </div>
+    <h1>Welcome to the Numbers Game!</h1>
+    <p>Nice to see you at the numbers game!</p>
+    <p>Enter your name and try to guess the number in the middle (not the lowest and not the highest).</p>
+    <p>Numbers are from 1 to 100.</p>
+    <p>The game will start when we have at least 3 players.</p>
+    <p>+10 extra seconds if more players want to join.</p>
+    <div class="timer" style="display: {% if countdown_active %}block{% else %}none{% endif %};">
+        Time remaining: {{ remaining_time|round(1) }}s
+    </div>
+    <form class="join-form" method="POST">
+        <input type="text" name="name" placeholder="Your name" required><br><br>
+        <input type="number" name="guess" placeholder="Your guess" min="1" max="100" required><br><br>
+        <button type="submit">Join Game</button>
+    </form>
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+    <div class="players">
+        {% for player in players %}
+            {{ player.name }} ({{ player.guess if game_started else 'guess hidden' }})
+            <br>
+        {% endfor %}
+    </div>
+</body>
+</html>
