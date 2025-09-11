@@ -46,12 +46,13 @@
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
                 const gameStarted = doc.body.querySelector('input[name="game_started"]')?.value === 'true';
-                if (gameStarted) {
+                const countdownActive = doc.body.querySelector('input[name="countdown_active"]')?.value === 'true';
+                if (gameStarted && !countdownActive) {
                     window.location.href = '/result';
                 }
             }).catch(error => console.error('Error checking game state:', error));
         }
-        setInterval(checkGameState, 1000); // Poll every second
+        setInterval(checkGameState, 500); // Poll every 0.5 seconds for faster detection
     </script>
 </head>
 <body>
@@ -87,5 +88,6 @@
         <p class="refresh-hint">If the game doesn’t update, please refresh the page.</p>
     {% endif %}
     <input type="hidden" name="game_started" value="{{ game_started }}">
+    <input type="hidden" name="countdown_active" value="{{ countdown_active }}">
 </body>
 </html>
