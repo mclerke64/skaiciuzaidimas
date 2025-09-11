@@ -2,7 +2,6 @@ from flask import Flask, render_template, request, redirect, url_for, session
 import time
 import uuid
 import os
-import threading
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
@@ -15,7 +14,7 @@ players = []
 game_started = False
 winners = []
 countdown_start_time = None
-countdown_duration = 10  # 10-second countdown
+countdown_duration = 5  # Reduced to 5 seconds to avoid timeout
 countdown_active = False
 game_id = str(uuid.uuid4())
 last_activity_time = time.time()
@@ -33,18 +32,6 @@ def get_middle_players(players):
     middle_guess = unique_guesses[middle_index]
     middle_players = [p for p in players if p['guess'] == middle_guess and guess_counts[middle_guess] == 1]
     return middle_players if middle_players else []
-
-def update_game_state():
-    global countdown_active, game_started, winners, countdown_start_time, last_activity_time
-    while True:
-        if countdown_active and countdown_start_time:
-            remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
-            if remaining_time <= 0:
-                countdown_active = False
-                game_started = True
-                winners = get_middle_players(players)
-                last_activity_time = time.time()
-        time.sleep(1)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -71,7 +58,16 @@ def index():
                 countdown_start_time = time.time()
         except ValueError:
             return render_template('index.html', error="Guess must be a valid number!")
-    remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time)) if countdown_active else 0
+    # Check countdown on every request
+    if countdown_active:
+        remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
+        if remaining_time <= 0:
+            countdown_active = False
+            game_started = True
+            winners = get_middle_players(players)
+            return redirect(url_for('result'))
+    else:
+        remaining_time = 0
     if game_started:
         return redirect(url_for('result'))
     return render_template('index.html', players=players, game_started=game_started,
@@ -100,5 +96,4 @@ def reset():
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    threading.Thread(target=update_game_state, daemon=True).start()
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
