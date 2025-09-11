@@ -36,20 +36,6 @@
             color: red;
         }
     </style>
-    <script>
-        function checkGameState() {
-            fetch('/').then(response => response.text()).then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const gameStarted = doc.body.querySelector('input[name="game_started"]')?.value === 'true';
-                const countdownActive = doc.body.querySelector('input[name="countdown_active"]')?.value === 'true';
-                if (gameStarted && !countdownActive) {
-                    window.location.href = '/result';
-                }
-            }).catch(error => console.error('Error checking game state:', error));
-        }
-        setInterval(checkGameState, 1000); // Poll every second
-    </script>
 </head>
 <body>
     <div class="number-grid">
@@ -66,7 +52,7 @@
     <div class="timer" style="display: {% if countdown_active %}block{% else %}none{% endif %};">
         Time remaining: {{ remaining_time|round(1) }}s
     </div>
-    <form class="join-form" method="POST">
+    <form class="join-form" method="POST" style="display: {% if game_started %}none{% else %}block{% endif %};">
         <input type="text" name="name" placeholder="Your name" required><br><br>
         <input type="number" name="guess" placeholder="Your guess" min="1" max="100" required><br><br>
         <button type="submit">Join Game</button>
@@ -80,7 +66,22 @@
             <br>
         {% endfor %}
     </div>
-    <input type="hidden" name="game_started" value="{{ game_started }}">
-    <input type="hidden" name="countdown_active" value="{{ countdown_active }}">
+    <div class="result" style="display: {% if game_started %}block{% else %}none{% endif %};">
+        <h2>Game Over!</h2>
+        {% if winners and winners|length > 0 %}
+            <h3>The winner is: {{ winners[0].name }} (guessed {{ winners[0].guess }})</h3>
+        {% else %}
+            <h3>It’s a draw!</h3>
+        {% endif %}
+        <h4>Guesses are:</h4>
+        <ul>
+            {% for player in players %}
+                <li>{{ player.name }} (guessed {{ player.guess }})</li>
+            {% endfor %}
+        </ul>
+        <form method="POST" action="/reset">
+            <button type="submit">Play Again</button>
+        </form>
+    </div>
 </body>
 </html>
