@@ -71,14 +71,6 @@ def index():
                 if len(players) >= 3 and not countdown_active:
                     countdown_active = True
                     countdown_start_time = time.time()
-                    while countdown_active and time.time() - countdown_start_time < countdown_duration:
-                        time.sleep(0.1)  # Simulate countdown
-                    countdown_active = False
-                    game_started = True
-                    winners = get_middle_players(players)
-                    return redirect(url_for('result'))
-                elif len(players) > 3 and countdown_active:
-                    countdown_start_time = time.time()
             except ValueError as ve:
                 return render_template('index.html', players=players, game_started=game_started,
                                       winners=winners, countdown_active=countdown_active,
@@ -89,8 +81,18 @@ def index():
                                       winners=winners, countdown_active=countdown_active,
                                       error="An internal error occurred while adding player.")
         
+        # Check if game should end and redirect
+        if countdown_active:
+            remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
+            if remaining_time <= 0:
+                countdown_active = False
+                game_started = True
+                winners = get_middle_players(players)
+                return redirect(url_for('result'))
+        else:
+            remaining_time = 0
+        
         initial_players = [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players]
-        remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time)) if countdown_active else 0
         return render_template('index.html', players=initial_players, game_started=game_started,
                               winners=winners, countdown_active=countdown_active,
                               remaining_time=remaining_time)
@@ -139,7 +141,6 @@ def auto_reset():
             countdown_start_time = None
             countdown_active = False
             game_id = str(uuid.uuid4())
-            break
         time.sleep(1)
 
 if __name__ == '__main__':
