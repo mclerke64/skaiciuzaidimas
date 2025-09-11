@@ -1,13 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-from flask_socketio import SocketIO, emit, join_room
 import time
 import uuid
 import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
-app.config['SESSION_TYPE'] = 'filesystem'  # Note: Switch to 'redis' with external Redis if possible
-socketio = SocketIO(app, async_mode='threading', ping_timeout=30, ping_interval=15, logger=True, engineio_logger=True)
+app.config['SESSION_TYPE'] = 'filesystem'
 from flask_session import Session
 Session(app)
 
@@ -16,11 +14,10 @@ players = []
 game_started = False
 winners = []
 countdown_start_time = None
-countdown_duration = 3  # Further reduced to 3 seconds to avoid timeout
+countdown_duration = 3  # 3-second countdown
 countdown_active = False
 game_id = str(uuid.uuid4())
 last_activity_time = time.time()
-ROOM = 'game_room'
 
 def get_middle_players(players):
     print(f"Calculating middle players for: {players}")
@@ -41,19 +38,6 @@ def get_middle_players(players):
     middle_players = [p for p in players if p['guess'] == middle_guess and guess_counts[middle_guess] == 1]
     return middle_players if middle_players else []
 
-def broadcast_game_state():
-    global last_activity_time
-    last_activity_time = time.time()
-    print(f"Broadcasting game state: players={len(players)}, game_started={game_started}, winners={winners}")
-    try:
-        socketio.emit('update_game_state', {
-            'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
-            'game_started': game_started,
-            'winners': winners
-        }, room=ROOM, namespace='/', skip_sid=None)
-    except Exception as e:
-        print(f"Broadcast error: {str(e)}")
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
@@ -62,6 +46,7 @@ def index():
             session['game_id'] = game_id
             session['submitted'] = False
             print(f"New session initialized with game_id: {game_id}")
+        
         if request.method == 'POST' and not game_started:
             name = request.form.get('name')
             guess = request.form.get('guess')
@@ -82,11 +67,16 @@ def index():
                 players.append({'name': name, 'guess': guess})
                 session['submitted'] = True
                 print(f"Player added: {name}, guess: {guess}, total players: {len(players)}")
-                broadcast_game_state()
+                last_activity_time = time.time()
                 if len(players) >= 3 and not countdown_active:
                     countdown_active = True
                     countdown_start_time = time.time()
-                    socketio.start_background_task(countdown)
+                    while countdown_active and time.time() - countdown_start_time < countdown_duration:
+                        time.sleep(0.1)  # Simulate countdown
+                    countdown_active = False
+                    game_started = True
+                    winners = get_middle_players(players)
+                    return redirect(url_for('result'))
                 elif len(players) > 3 and countdown_active:
                     countdown_start_time = time.time()
             except ValueError as ve:
@@ -98,9 +88,12 @@ def index():
                 return render_template('index.html', players=players, game_started=game_started,
                                       winners=winners, countdown_active=countdown_active,
                                       error="An internal error occurred while adding player.")
+        
         initial_players = [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players]
+        remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time)) if countdown_active else 0
         return render_template('index.html', players=initial_players, game_started=game_started,
-                              winners=winners, countdown_active=countdown_active)
+                              winners=winners, countdown_active=countdown_active,
+                              remaining_time=remaining_time)
     except Exception as e:
         print(f"Unexpected error in index: {str(e)}")
         return render_template('index.html', players=players, game_started=game_started,
@@ -122,34 +115,10 @@ def reset():
         session['game_id'] = game_id
         session['submitted'] = False
         last_activity_time = time.time()
-        socketio.emit('game_reset', {}, room=ROOM, namespace='/')
         return redirect(url_for('index'))
     except Exception as e:
         print(f"Error in reset: {str(e)}")
         return "Internal Server Error", 500
-
-def countdown():
-    global countdown_active, game_started, winners, countdown_start_time, last_activity_time
-    while countdown_active and countdown_start_time is not None:
-        try:
-            elapsed_time = time.time() - countdown_start_time
-            remaining_time = max(0, countdown_duration - elapsed_time)
-            socketio.emit('update_countdown', {
-                'countdown_active': countdown_active,
-                'remaining_time': remaining_time
-            }, room=ROOM, namespace='/')
-            print(f"Countdown: {remaining_time:.1f}s remaining")
-            if remaining_time <= 0:
-                countdown_active = False
-                game_started = True
-                winners = get_middle_players(players)
-                broadcast_game_state()
-                # Redirect to result page to ensure all see it
-                return redirect(url_for('result'))
-            socketio.sleep(0.1)
-        except Exception as e:
-            print(f"Countdown error: {str(e)}")
-            break
 
 @app.route('/result')
 def result():
@@ -162,7 +131,6 @@ def auto_reset():
     global players, game_started, winners, countdown_start_time, countdown_active, game_id, last_activity_time
     while True:
         inactive_time = time.time() - last_activity_time
-        # Only reset if game hasn't started and fewer than 3 players
         if not countdown_active and not game_started and len(players) < 3 and inactive_time >= 10:
             print('Auto-resetting due to inactivity')
             players = []
@@ -171,55 +139,10 @@ def auto_reset():
             countdown_start_time = None
             countdown_active = False
             game_id = str(uuid.uuid4())
-            socketio.emit('game_reset', {}, room=ROOM, namespace='/')
-            broadcast_game_state()
             break
-        socketio.sleep(1)
-
-@socketio.on('connect', namespace='/')
-def handle_connect():
-    print('Client connected with sid:', request.sid)
-    try:
-        session['game_id'] = game_id  # Force a new session on connect
-        session['submitted'] = False
-        join_room(ROOM)
-        # Send state to the connecting client
-        emit('update_game_state', {
-            'players': [{'name': p['name'], 'guess': p['guess'] if game_started else 'hidden'} for p in players],
-            'game_started': game_started,
-            'winners': winners
-        }, room=request.sid, namespace='/')
-        if countdown_active and countdown_start_time is not None:
-            remaining_time = max(0, countdown_duration - (time.time() - countdown_start_time))
-            emit('update_countdown', {
-                'countdown_active': countdown_active,
-                'remaining_time': remaining_time
-            }, room=request.sid, namespace='/')
-    except Exception as e:
-        print(f"Error in connect: {str(e)}")
-
-@socketio.on('disconnect', namespace='/')
-def handle_disconnect():
-    print(f'Client disconnected with session {request.sid}')
-    try:
-        if 'game_id' in session and session.get('game_id') == game_id:
-            del session['game_id']
-            del session['submitted']
-    except Exception as e:
-        print(f"Error in disconnect: {str(e)}")
-
-@socketio.on('game_reset')
-def handle_game_reset():
-    try:
-        session.clear()
-        session['game_id'] = request.sid
-        session['submitted'] = False
-    except Exception as e:
-        print(f"Error in game_reset: {str(e)}")
-
-@socketio.on('game_ended')
-def handle_game_ended():
-    emit('game_ended', room=ROOM, namespace='/')
+        time.sleep(1)
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    import threading
+    threading.Thread(target=auto_reset, daemon=True).start()
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
