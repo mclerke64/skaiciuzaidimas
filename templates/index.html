@@ -7,7 +7,15 @@
             font-family: Arial, sans-serif;
             text-align: center;
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            background: linear-gradient(135deg, #ff9d6c, #bb4e75, #8b5cf6, #3b82f6, #22c55e);  /* Colorful gradient background */
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
         .number-grid {
             display: grid;
@@ -35,6 +43,11 @@
         .error {
             color: red;
         }
+        .server-message {
+            color: orange;
+            font-style: italic;
+            margin: 10px 0;
+        }
         .refresh-hint {
             color: blue;
             font-style: italic;
@@ -46,13 +59,12 @@
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
                 const gameStarted = doc.body.querySelector('input[name="game_started"]')?.value === 'true';
-                const countdownActive = doc.body.querySelector('input[name="countdown_active"]')?.value === 'true';
-                if (gameStarted && !countdownActive) {
+                if (gameStarted) {
                     window.location.href = '/result';
                 }
             }).catch(error => console.error('Error checking game state:', error));
         }
-        setInterval(checkGameState, 500); // Poll every 0.5 seconds for faster detection
+        setInterval(checkGameState, 1000); // Poll every second
     </script>
 </head>
 <body>
@@ -67,6 +79,7 @@
     <p>Numbers are from 1 to 100.</p>
     <p>The game will start when we have at least 3 players.</p>
     <p>+10 extra seconds if more players want to join.</p>
+    <p class="server-message">There might be some server errors, so please reload the page manually if the game doesn't update.</p>
     <div class="timer" style="display: {% if countdown_active %}block{% else %}none{% endif %};">
         Time remaining: {{ remaining_time|round(1) }}s
     </div>
