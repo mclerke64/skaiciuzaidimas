@@ -60,10 +60,14 @@
                 const doc = parser.parseFromString(html, 'text/html');
                 const gameStarted = doc.body.querySelector('input[name="game_started"]')?.value === 'true';
                 const countdownActive = doc.body.querySelector('input[name="countdown_active"]')?.value === 'true';
+                const remainingTime = parseFloat(doc.body.querySelector('input[name="remaining_time"]')?.value) || 0;
                 const newPlayers = doc.body.querySelector('.players')?.innerHTML || '';
                 document.querySelector('.players').innerHTML = newPlayers;
+                document.querySelector('.timer').style.display = countdownActive ? 'block' : 'none';
+                document.querySelector('.timer').textContent = `Time remaining: ${remainingTime.toFixed(1)}s`;
 
-                if (gameStarted && !countdownActive) {
+                // Redirect to result only when countdown ends and game is started
+                if (gameStarted && !countdownActive && remainingTime <= 0) {
                     window.location.href = '/result';
                 }
             }).catch(error => console.error('Error updating players:', error));
@@ -106,5 +110,6 @@
     {% endif %}
     <input type="hidden" name="game_started" value="{{ game_started }}">
     <input type="hidden" name="countdown_active" value="{{ countdown_active }}">
+    <input type="hidden" name="remaining_time" value="{{ remaining_time|round(1) }}">
 </body>
 </html>
