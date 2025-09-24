@@ -8,7 +8,7 @@
             text-align: center;
             margin: 0;
             padding: 0;
-            background: linear-gradient(135deg, #ff9d6c, #bb4e75, #8b5cf6, #3b82f6, #22c55e);  /* Colorful gradient background */
+            background: linear-gradient(135deg, #ff9d6c, #bb4e75, #8b5cf6, #3b82f6, #22c55e);
             background-size: 400% 400%;
             animation: gradient 15s ease infinite;
         }
@@ -54,17 +54,21 @@
         }
     </style>
     <script>
-        function checkGameState() {
+        function updatePlayers() {
             fetch('/').then(response => response.text()).then(html => {
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
                 const gameStarted = doc.body.querySelector('input[name="game_started"]')?.value === 'true';
-                if (gameStarted) {
+                const countdownActive = doc.body.querySelector('input[name="countdown_active"]')?.value === 'true';
+                const newPlayers = doc.body.querySelector('.players')?.innerHTML || '';
+                document.querySelector('.players').innerHTML = newPlayers;
+
+                if (gameStarted && !countdownActive) {
                     window.location.href = '/result';
                 }
-            }).catch(error => console.error('Error checking game state:', error));
+            }).catch(error => console.error('Error updating players:', error));
         }
-        setInterval(checkGameState, 1000); // Poll every second
+        setInterval(updatePlayers, 1000); // Poll every second
     </script>
 </head>
 <body>
@@ -97,7 +101,7 @@
             <br>
         {% endfor %}
     </div>
-    {% if countdown_active and not game_started %}
+    {% if players|length >= 3 %}
         <p class="refresh-hint">If the game doesn’t update, please refresh the page.</p>
     {% endif %}
     <input type="hidden" name="game_started" value="{{ game_started }}">
