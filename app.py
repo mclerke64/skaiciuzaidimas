@@ -26,12 +26,20 @@ def get_middle_players(players):
     for p in players:
         guess_counts[p['guess']] = guess_counts.get(p['guess'], 0) + 1
     unique_guesses = sorted(guess_counts.keys())
-    if len(unique_guesses) < 3 or len(unique_guesses) % 2 == 0:
+    if len(unique_guesses) < 3:
         return []
-    middle_index = len(unique_guesses) // 2
-    middle_guess = unique_guesses[middle_index]
-    middle_players = [p for p in players if p['guess'] == middle_guess and guess_counts[middle_guess] == 1]
-    return middle_players if middle_players else []
+    if len(unique_guesses) >= 4 and len(unique_guesses) % 2 == 0:
+        middle_index = len(unique_guesses) // 2
+        middle_guesses = [unique_guesses[middle_index - 1], unique_guesses[middle_index]]
+        middle_players = []
+        for guess in middle_guesses:
+            middle_players.extend([p for p in players if p['guess'] == guess])
+        return middle_players if middle_players else []
+    else:
+        middle_index = len(unique_guesses) // 2
+        middle_guess = unique_guesses[middle_index]
+        middle_players = [p for p in players if p['guess'] == middle_guess]
+        return middle_players if middle_players else []
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
