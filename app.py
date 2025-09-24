@@ -65,13 +65,14 @@ def index():
             countdown_active = False
             game_started = True
             winners = get_middle_players(players)
-            return redirect(url_for('result'))
     else:
         remaining_time = 0
-    if game_started:
+    game_ended = game_started and not countdown_active and remaining_time <= 0
+    if game_ended:
         return redirect(url_for('result'))
     return render_template('index.html', players=players, game_started=game_started,
-                          winners=winners, countdown_active=countdown_active, remaining_time=remaining_time)
+                          winners=winners, countdown_active=countdown_active,
+                          remaining_time=remaining_time, game_ended=game_ended)
 
 @app.route('/result')
 def result():
