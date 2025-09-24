@@ -52,9 +52,6 @@
             color: blue;
             font-style: italic;
         }
-        .game-over {
-            display: {% if game_ended %}block{% else %}none{% endif %};
-        }
     </style>
     <script>
         function updatePlayers() {
@@ -66,13 +63,13 @@
                 const remainingTime = parseFloat(doc.body.querySelector('input[name="remaining_time"]')?.value) || 0;
                 const gameEnded = doc.body.querySelector('input[name="game_ended"]')?.value === 'true';
                 const newPlayers = doc.body.querySelector('.players')?.innerHTML || '';
-                const newGameOver = doc.body.querySelector('.game-over')?.innerHTML || '';
                 document.querySelector('.players').innerHTML = newPlayers;
                 document.querySelector('.timer').style.display = countdownActive ? 'block' : 'none';
                 document.querySelector('.timer').textContent = `Time remaining: ${remainingTime.toFixed(1)}s`;
+
+                // Redirect to result only when game has ended
                 if (gameEnded) {
-                    document.querySelector('.game-over').style.display = 'block';
-                    document.querySelector('form').style.display = 'none';
+                    window.location.href = '/result';
                 }
             }).catch(error => console.error('Error updating players:', error));
         }
@@ -112,23 +109,6 @@
     {% if players|length >= 3 %}
         <p class="refresh-hint">If the game doesn’t update, please refresh the page.</p>
     {% endif %}
-    <div class="game-over">
-        <h1>Game Over!</h1>
-        {% if winners and winners|length > 0 %}
-            <h2>The winner is: {{ winners[0].name }} (guessed {{ winners[0].guess }})</h2>
-        {% else %}
-            <h2>It's a draw!</h2>
-        {% endif %}
-        <h3>Guesses are:</h3>
-        <ul>
-            {% for player in players %}
-                <li>{{ player.name }} (guessed {{ player.guess }})</li>
-            {% endfor %}
-        </ul>
-        <form method="POST" action="/reset">
-            <button type="submit">Play Again</button>
-        </form>
-    </div>
     <input type="hidden" name="game_started" value="{{ game_started }}">
     <input type="hidden" name="countdown_active" value="{{ countdown_active }}">
     <input type="hidden" name="remaining_time" value="{{ remaining_time|round(1) }}">
