@@ -68,18 +68,9 @@ def index():
     else:
         remaining_time = 0
     game_ended = game_started and not countdown_active and remaining_time <= 0
-    if game_ended:
-        return redirect(url_for('result'))
     return render_template('index.html', players=players, game_started=game_started,
                           winners=winners, countdown_active=countdown_active,
                           remaining_time=remaining_time, game_ended=game_ended)
-
-@app.route('/result')
-def result():
-    global players, game_started, winners
-    if game_started:
-        return render_template('result.html', players=players, winners=winners)
-    return redirect(url_for('index'))
 
 @app.route('/reset', methods=['POST'])
 def reset():
