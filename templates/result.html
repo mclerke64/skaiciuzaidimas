@@ -8,7 +8,7 @@
             text-align: center;
             margin: 0;
             padding: 20px;
-            background: linear-gradient(135deg, #ff9d6c, #bb4e75, #8b5cf6, #3b82f6, #22c55e);  /* Same colorful gradient background */
+            background: linear-gradient(135deg, #ff9d6c, #bb4e75, #8b5cf6, #3b82f6, #22c55e);
             background-size: 400% 400%;
             animation: gradient 15s ease infinite;
         }
@@ -72,7 +72,16 @@
     <h1>Game Over!</h1>
     <div class="result">
         {% if winners and winners|length > 0 %}
-            <h2>The winner is: {{ winners[0].name }} (guessed {{ winners[0].guess }})</h2>
+            {% if winners|length == 1 %}
+                <h2>The winner is: {{ winners[0].name }} (guessed {{ winners[0].guess }})</h2>
+            {% else %}
+                <h2>The winners are:</h2>
+                <ul>
+                    {% for winner in winners %}
+                        <li>{{ winner.name }} (guessed {{ winner.guess }})</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
         {% else %}
             <h2>It's a draw!</h2>
         {% endif %}
